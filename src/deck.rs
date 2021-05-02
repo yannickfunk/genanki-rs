@@ -43,7 +43,7 @@ impl Deck {
             transaction.query_row("SELECT models FROM col", [], |row| row.get(0))?;
         let mut models: HashMap<usize, ModelDbEntry> = serde_json::from_str(&models_json_str)?;
         for note in self.notes.clone().iter() {
-            self.add_model(note.model().expect("Model should be there"));
+            self.add_model(note.model());
         }
         for (i, model) in &self.models {
             models.insert(*i, model.to_model_db_entry(timestamp, self.id));

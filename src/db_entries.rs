@@ -58,24 +58,24 @@ pub struct ModelDbEntry {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Fld {
-    name: String,
-    media: Vec<Option<serde_json::Value>>,
-    sticky: bool,
-    rtl: bool,
-    ord: i64,
-    font: String,
-    size: i64,
+    pub name: String,
+    pub media: Vec<Option<serde_json::Value>>,
+    pub sticky: bool,
+    pub rtl: bool,
+    pub ord: i64,
+    pub font: String,
+    pub size: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Tmpl {
-    name: String,
-    qfmt: String,
-    did: Option<serde_json::Value>,
-    bafmt: String,
-    afmt: String,
-    ord: i64,
-    bqfmt: String,
+    pub name: String,
+    pub qfmt: String,
+    pub did: Option<serde_json::Value>,
+    pub bafmt: String,
+    pub afmt: String,
+    pub ord: i64,
+    pub bqfmt: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

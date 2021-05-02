@@ -1,7 +1,5 @@
 use crate::db_entries::{Fld, ModelDbEntry, Req, Tmpl};
 
-const FRONT_BACK: i64 = 0;
-const CLOZE: i64 = 1;
 const DEFAULT_LATEX_PRE: &str = r#"
 \documentclass[12pt]{article}
 \special{papersize=3in,5in}
@@ -15,13 +13,19 @@ const DEFAULT_LATEX_PRE: &str = r#"
 const DEFAULT_LATEX_POST: &str = r"\end{document}";
 
 #[derive(Clone)]
+pub enum ModelType {
+    FrontBack,
+    Cloze,
+}
+
+#[derive(Clone)]
 pub struct Model {
     pub id: usize,
     name: String,
     fields: Vec<Fld>,
     templates: Vec<Tmpl>,
     css: String,
-    model_type: i64,
+    model_type: ModelType,
     latex_pre: String,
     latex_post: String,
     sort_field_index: i64,
@@ -40,7 +44,7 @@ impl Model {
             fields,
             templates,
             css: "".to_string(),
-            model_type: FRONT_BACK,
+            model_type: ModelType::FrontBack,
             latex_pre: DEFAULT_LATEX_PRE.to_string(),
             latex_post: DEFAULT_LATEX_POST.to_string(),
             sort_field_index: 0,
@@ -53,7 +57,7 @@ impl Model {
         fields: Vec<Fld>,
         templates: Vec<Tmpl>,
         css: String,
-        model_type: i64,
+        model_type: ModelType,
         latex_pre: String,
         latex_post: String,
         sort_field_index: i64,
@@ -79,7 +83,18 @@ impl Model {
         self.fields.clone()
     }
 
+    pub fn templates(&self) -> Vec<Tmpl> {
+        self.templates.clone()
+    }
+
+    pub fn model_type(&self) -> ModelType {
+        self.model_type.clone()
+    }
     pub fn to_model_db_entry(&self, timestamp: f64, deck_id: usize) -> ModelDbEntry {
+        let model_type = match self.model_type {
+            ModelType::FrontBack => 0,
+            ModelType::Cloze => 1,
+        };
         ModelDbEntry {
             vers: vec![],
             name: self.name.clone(),
@@ -92,7 +107,7 @@ impl Model {
             tmpls: self.templates.clone(),
             model_db_entry_mod: timestamp as i64,
             latex_post: self.latex_post.clone(),
-            model_db_entry_type: self.model_type.clone(),
+            model_db_entry_type: model_type,
             id: self.id.to_string(),
             css: self.css.clone(),
             latex_pre: self.latex_pre.clone(),
