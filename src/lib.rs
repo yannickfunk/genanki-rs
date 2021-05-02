@@ -1,3 +1,11 @@
+mod apkg_col;
+mod apkg_schema;
+mod db_entries;
+mod deck;
+mod model;
+mod note;
+mod package;
+
 #[cfg(test)]
 mod tests {
     #[test]

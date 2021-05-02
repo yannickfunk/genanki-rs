@@ -9,3 +9,9 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rusqlite = { version="0.25.1", features=["bundled"] }
+tempfile = "3.2.0"
+zip = "0.5.12"
+serde_json = "1.0.64"
+anyhow = "1.0.40"
+serde = { version = "1.0", features = ["derive"] }
