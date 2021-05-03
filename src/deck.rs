@@ -1,7 +1,7 @@
 use crate::db_entries::{DeckDbEntry, ModelDbEntry};
 use crate::model::Model;
 use crate::note::Note;
-use rusqlite::Transaction;
+use rusqlite::{params, Transaction};
 use serde_json::json;
 use std::collections::HashMap;
 
@@ -15,6 +15,16 @@ pub struct Deck {
 }
 
 impl Deck {
+    pub fn new(id: usize, name: String, description: String) -> Self {
+        Self {
+            id,
+            name,
+            description,
+            notes: vec![],
+            models: HashMap::new(),
+        }
+    }
+
     pub fn add_note(&mut self, note: Note) {
         self.notes.push(note);
     }
@@ -23,45 +33,7 @@ impl Deck {
         self.models.insert(model.id, model);
     }
 
-    pub fn to_json(&self) -> String {
-        let db_entry: DeckDbEntry = self.clone().into();
-        serde_json::to_string(&db_entry).expect("Should always serialize")
-    }
-
-    pub fn write_to_db(
-        &mut self,
-        transaction: &Transaction,
-        timestamp: f64,
-    ) -> Result<(), anyhow::Error> {
-        let decks_json_str: String =
-            transaction.query_row("SELECT decks FROM col", [], |row| row.get(0))?;
-        let mut decks: HashMap<usize, DeckDbEntry> = serde_json::from_str(&decks_json_str)?;
-        decks.insert(self.id, self.clone().into());
-        transaction.execute("UPDATE col SET decks = 1", [serde_json::to_string(&decks)?])?;
-
-        let models_json_str: String =
-            transaction.query_row("SELECT models FROM col", [], |row| row.get(0))?;
-        let mut models: HashMap<usize, ModelDbEntry> = serde_json::from_str(&models_json_str)?;
-        for note in self.notes.clone().iter() {
-            self.add_model(note.model());
-        }
-        for (i, model) in &self.models {
-            models.insert(*i, model.to_model_db_entry(timestamp, self.id));
-        }
-        transaction.execute(
-            "UPDATE col SET models = ?",
-            [serde_json::to_string(&models)?],
-        )?;
-
-        for note in &mut self.notes {
-            note.write_to_db(&transaction, timestamp, self.id)?;
-        }
-        Ok(())
-    }
-}
-
-impl Into<DeckDbEntry> for &Deck {
-    fn into(self) -> DeckDbEntry {
+    pub fn to_deck_db_entry(&self) -> DeckDbEntry {
         DeckDbEntry {
             collapsed: false,
             conf: 1,
@@ -78,5 +50,43 @@ impl Into<DeckDbEntry> for &Deck {
             time_today: vec![163, 23598],
             usn: -1,
         }
+    }
+    pub fn to_json(&self) -> String {
+        let db_entry: DeckDbEntry = self.to_deck_db_entry();
+        serde_json::to_string(&db_entry).expect("Should always serialize")
+    }
+
+    pub fn write_to_db(
+        &mut self,
+        transaction: &Transaction,
+        timestamp: f64,
+    ) -> Result<(), anyhow::Error> {
+        let decks_json_str: String =
+            transaction.query_row("SELECT decks FROM col", [], |row| row.get(0))?;
+        let mut decks: HashMap<usize, DeckDbEntry> = serde_json::from_str(&decks_json_str)?;
+        decks.insert(self.id, self.to_deck_db_entry());
+        transaction.execute(
+            "UPDATE col SET decks = ?",
+            params![serde_json::to_string(&decks)?],
+        )?;
+
+        let models_json_str: String =
+            transaction.query_row("SELECT models FROM col", [], |row| row.get(0))?;
+        let mut models: HashMap<usize, ModelDbEntry> = serde_json::from_str(&models_json_str)?;
+        for note in self.notes.clone().iter() {
+            self.add_model(note.model());
+        }
+        for (i, model) in &self.models {
+            models.insert(*i, model.to_model_db_entry(timestamp, self.id)?);
+        }
+        transaction.execute(
+            "UPDATE col SET models = ?",
+            [serde_json::to_string(&models)?],
+        )?;
+
+        for note in &mut self.notes {
+            note.write_to_db(&transaction, timestamp, self.id)?;
+        }
+        Ok(())
     }
 }

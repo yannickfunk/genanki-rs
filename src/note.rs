@@ -1,5 +1,7 @@
 use crate::card::Card;
+use crate::db_entries::Req;
 use crate::model::{Model, ModelType};
+use crate::util::guid_for;
 use anyhow::anyhow;
 use regex::Regex;
 use rusqlite::{params, Transaction};
@@ -23,22 +25,29 @@ impl Note {
         sort_field: bool,
         tags: Vec<String>,
         guid: Option<String>,
-    ) -> Self {
+    ) -> Result<Self, anyhow::Error> {
         let cards = match model.model_type() {
-            ModelType::FrontBack => front_back_cards(),
+            ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
         };
-        Self {
+        Ok(Self {
             model,
             fields,
             sort_field,
             tags,
             guid,
             cards,
-        }
+        })
     }
     pub fn model(&self) -> Model {
         self.model.clone()
+    }
+
+    fn guid(&self) -> String {
+        match &self.guid {
+            None => guid_for(&self.fields),
+            Some(guid) => guid.clone(),
+        }
     }
 
     fn check_number_model_fields_matches_num_fields(&self) -> Result<(), anyhow::Error> {
@@ -73,7 +82,7 @@ impl Note {
             "INSERT INTO notes VALUES(?,?,?,?,?,?,?,?,?,?,?);",
             params![
                 (timestamp * 1000.0) as usize, // id
-                self.guid.as_ref().unwrap(),   // guid
+                self.guid(),                   // guid
                 self.model.id,                 // mid
                 timestamp as i64,              // mod
                 -1,                            // usn
@@ -129,8 +138,49 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
         .collect()
 }
 
-fn front_back_cards() -> Vec<Card> {
-    vec![]
+fn front_back_cards(model: &Model, self_fields: &Vec<String>) -> Result<Vec<Card>, anyhow::Error> {
+    let mut rv = vec![];
+    for req_vec in model.req()?.iter() {
+        let card_ord = if let Req::Integer(card_ord) = req_vec[0].clone() {
+            card_ord
+        } else {
+            panic!("checked before")
+        };
+        let any_or_all = if let Req::String(any_or_all) = req_vec[1].clone() {
+            any_or_all
+        } else {
+            panic!("checked before")
+        };
+        let required_field_ords = if let Req::IntegerArray(required_field_ords) = req_vec[2].clone()
+        {
+            required_field_ords
+        } else {
+            panic!("checked before")
+        };
+
+        match any_or_all.as_str() {
+            "any" => {
+                if required_field_ords
+                    .iter()
+                    .map(|&ord| &self_fields[ord])
+                    .any(|field| field.len() > 0)
+                {
+                    rv.push(Card::new(card_ord as i64, false));
+                }
+            }
+            "all" => {
+                if required_field_ords
+                    .iter()
+                    .map(|&ord| &self_fields[ord])
+                    .all(|field| field.len() > 0)
+                {
+                    rv.push(Card::new(card_ord as i64, false));
+                }
+            }
+            _ => panic!("only any or all"),
+        };
+    }
+    Ok(rv)
 }
 
 fn re_findall(regex_str: &'static str, to_match: &str) -> Vec<String> {

@@ -67,7 +67,7 @@ pub struct Fld {
     pub size: i64,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Tmpl {
     pub name: String,
     pub qfmt: String,
@@ -81,7 +81,7 @@ pub struct Tmpl {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum Req {
-    Integer(i64),
-    IntegerArray(Vec<i64>),
+    Integer(usize),
+    IntegerArray(Vec<usize>),
     String(String),
 }

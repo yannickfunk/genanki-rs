@@ -25,9 +25,10 @@ impl Package {
 
     pub fn write_to_file(
         &mut self,
-        file: File,
+        file: &str,
         timestamp: Option<f64>,
     ) -> Result<(), anyhow::Error> {
+        let file = File::create(&file)?;
         let db_file = NamedTempFile::new()?.into_temp_path();
 
         let mut conn = Connection::open(&db_file)?;
@@ -75,6 +76,7 @@ impl Package {
             )?;
             outzip.write(idx.to_string().as_bytes())?;
         }
+        outzip.finish()?;
         Ok(())
     }
 
@@ -97,17 +99,4 @@ fn read_file_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, anyhow::Error> {
     let mut data = Vec::new();
     handle.read_to_end(&mut data)?;
     Ok(data)
-}
-
-mod tests {
-    use super::*;
-
-    #[test]
-    fn write_to_file() {
-        let mut package = Package::new(vec![], vec![]);
-        println!(
-            "{:?}",
-            package.write_to_file(File::create("test.apkg").unwrap(), None)
-        );
-    }
 }
