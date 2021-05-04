@@ -15,11 +15,11 @@ pub struct Deck {
 }
 
 impl Deck {
-    pub fn new(id: usize, name: String, description: String) -> Self {
+    pub fn new(id: usize, name: &str, description: &str) -> Self {
         Self {
             id,
-            name,
-            description,
+            name: name.to_string(),
+            description: description.to_string(),
             notes: vec![],
             models: HashMap::new(),
         }

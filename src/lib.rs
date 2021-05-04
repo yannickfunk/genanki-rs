@@ -43,11 +43,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut my_deck = Deck::new(
-            2059400110,
-            "Country Capitals".to_string(),
-            "deck for capitals".to_string(),
-        );
+        let mut my_deck = Deck::new(2059400110, "Country Capitals", "deck for capitals");
         my_deck.add_note(my_note);
         Package::new(vec![my_deck], vec!["buenas.png"])
             .unwrap()
