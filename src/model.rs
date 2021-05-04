@@ -1,4 +1,6 @@
+use crate::builders::Template;
 use crate::db_entries::{Fld, ModelDbEntry, Req, Tmpl};
+use crate::Field;
 use anyhow::anyhow;
 use handlebars::Handlebars;
 use std::collections::HashMap;
@@ -35,17 +37,12 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn new_with_defaults(
-        id: usize,
-        name: String,
-        fields: Vec<Fld>,
-        templates: Vec<Tmpl>,
-    ) -> Self {
+    pub fn new(id: usize, name: &str, fields: Vec<Field>, templates: Vec<Template>) -> Self {
         Self {
             id,
-            name,
-            fields,
-            templates,
+            name: name.to_string(),
+            fields: fields.iter().cloned().map(|f| f.into()).collect(),
+            templates: templates.iter().cloned().map(|t| t.into()).collect(),
             css: "".to_string(),
             model_type: ModelType::FrontBack,
             latex_pre: DEFAULT_LATEX_PRE.to_string(),
@@ -59,22 +56,22 @@ impl Model {
         name: String,
         fields: Vec<Fld>,
         templates: Vec<Tmpl>,
-        css: String,
-        model_type: ModelType,
-        latex_pre: String,
-        latex_post: String,
-        sort_field_index: i64,
+        css: Option<String>,
+        model_type: Option<ModelType>,
+        latex_pre: Option<String>,
+        latex_post: Option<String>,
+        sort_field_index: Option<i64>,
     ) -> Self {
         Self {
             id,
             name,
             fields,
             templates,
-            css,
-            model_type,
-            latex_pre,
-            latex_post,
-            sort_field_index,
+            css: css.unwrap_or("".to_string()),
+            model_type: model_type.unwrap_or(ModelType::FrontBack),
+            latex_pre: latex_pre.unwrap_or(DEFAULT_LATEX_PRE.to_string()),
+            latex_post: latex_post.unwrap_or(DEFAULT_LATEX_POST.to_string()),
+            sort_field_index: sort_field_index.unwrap_or(0),
         }
     }
 
@@ -144,10 +141,19 @@ impl Model {
         self.model_type.clone()
     }
     pub fn to_model_db_entry(
-        &self,
+        &mut self,
         timestamp: f64,
         deck_id: usize,
     ) -> Result<ModelDbEntry, anyhow::Error> {
+        self.templates
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, template)| {
+                template.ord = i as i64;
+            });
+        self.fields.iter_mut().enumerate().for_each(|(i, field)| {
+            field.ord = i as i64;
+        });
         let model_type = match self.model_type {
             ModelType::FrontBack => 0,
             ModelType::Cloze => 1,
@@ -170,7 +176,7 @@ impl Model {
             latex_pre: self.latex_pre.clone(),
         })
     }
-    pub fn to_json(&self, timestamp: f64, deck_id: usize) -> Result<String, anyhow::Error> {
+    pub fn to_json(&mut self, timestamp: f64, deck_id: usize) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(
             &self.to_model_db_entry(timestamp, deck_id)?,
         )?)

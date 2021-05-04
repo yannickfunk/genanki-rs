@@ -71,7 +71,7 @@ pub struct Fld {
 pub struct Tmpl {
     pub name: String,
     pub qfmt: String,
-    pub did: Option<serde_json::Value>,
+    pub did: Option<usize>,
     pub bafmt: String,
     pub afmt: String,
     pub ord: i64,

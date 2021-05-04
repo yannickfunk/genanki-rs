@@ -76,7 +76,7 @@ impl Deck {
         for note in self.notes.clone().iter() {
             self.add_model(note.model());
         }
-        for (i, model) in &self.models {
+        for (i, model) in &mut self.models {
             models.insert(*i, model.to_model_db_entry(timestamp, self.id)?);
         }
         transaction.execute(

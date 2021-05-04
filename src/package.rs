@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection, Transaction};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::NamedTempFile;
-use zip::{write::FileOptions, ZipWriter};
+use zip::{write::FileOptions, CompressionMethod, ZipWriter};
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use crate::apkg_col::APKG_COL;
 use crate::apkg_schema::APKG_SCHEMA;
 use crate::deck::Deck;
+use std::str::FromStr;
 
 pub struct Package {
     decks: Vec<Deck>,
@@ -19,11 +20,26 @@ pub struct Package {
 }
 
 impl Package {
-    pub fn new(decks: Vec<Deck>, media_files: Vec<PathBuf>) -> Self {
-        Self { decks, media_files }
+    pub fn new(decks: Vec<Deck>, media_files: Vec<&str>) -> Result<Self, anyhow::Error> {
+        let media_files = media_files
+            .iter()
+            .map(|&s| PathBuf::from_str(s))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self { decks, media_files })
+    }
+    pub fn write_to_file(&mut self, file: &str) -> Result<(), anyhow::Error> {
+        self.write_to_file_maybe_timestamp(file, None)
     }
 
-    pub fn write_to_file(
+    pub fn write_to_file_timestamp(
+        &mut self,
+        file: &str,
+        timestamp: f64,
+    ) -> Result<(), anyhow::Error> {
+        self.write_to_file_maybe_timestamp(file, Some(timestamp))
+    }
+
+    fn write_to_file_maybe_timestamp(
         &mut self,
         file: &str,
         timestamp: Option<f64>,
@@ -46,7 +62,7 @@ impl Package {
 
         let mut outzip = ZipWriter::new(file);
         outzip.start_file("collection.anki2", FileOptions::default())?;
-        outzip.write(&read_file_bytes(db_file)?)?;
+        outzip.write_all(&read_file_bytes(db_file)?)?;
 
         let media_file_idx_to_path = self
             .media_files
@@ -58,23 +74,21 @@ impl Package {
             .into_iter()
             .map(|(id, path)| {
                 (
-                    id,
-                    path.parent()
-                        .expect("Should always have parent")
-                        .as_os_str(),
+                    id.to_string(),
+                    path.file_name()
+                        .expect("Should always have a filename")
+                        .to_str()
+                        .expect("should always have string"),
                 )
             })
-            .collect::<HashMap<usize, &OsStr>>();
+            .collect::<HashMap<String, &str>>();
         let media_json = serde_json::to_string(&media_map)?;
         outzip.start_file("media", FileOptions::default())?;
-        outzip.write(media_json.as_bytes())?;
+        outzip.write_all(media_json.as_bytes())?;
 
         for (idx, &path) in &media_file_idx_to_path {
-            outzip.start_file(
-                path.to_str().expect("should have a string"),
-                FileOptions::default(),
-            )?;
-            outzip.write(idx.to_string().as_bytes())?;
+            outzip.start_file(idx.to_string(), FileOptions::default())?;
+            outzip.write_all(&read_file_bytes(path)?)?;
         }
         outzip.finish()?;
         Ok(())

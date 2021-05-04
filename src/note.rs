@@ -14,27 +14,46 @@ pub struct Note {
     fields: Vec<String>,
     sort_field: bool,
     tags: Vec<String>,
-    guid: Option<String>,
+    guid: String,
     cards: Vec<Card>,
 }
 
 impl Note {
-    pub fn new(
-        model: Model,
-        fields: Vec<String>,
-        sort_field: bool,
-        tags: Vec<String>,
-        guid: Option<String>,
-    ) -> Result<Self, anyhow::Error> {
+    pub fn new(model: Model, fields: Vec<&str>) -> Result<Self, anyhow::Error> {
+        let fields = fields.iter().map(|&s| s.to_string()).collect();
         let cards = match model.model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
         };
+        let guid = guid_for(&fields);
         Ok(Self {
             model,
             fields,
-            sort_field,
-            tags,
+            sort_field: false,
+            tags: vec![],
+            guid,
+            cards,
+        })
+    }
+
+    pub fn new_with_options(
+        model: Model,
+        fields: Vec<&str>,
+        sort_field: Option<bool>,
+        tags: Option<Vec<String>>,
+        guid: Option<String>,
+    ) -> Result<Self, anyhow::Error> {
+        let fields = fields.iter().map(|s| s.to_string()).collect();
+        let cards = match model.model_type() {
+            ModelType::FrontBack => front_back_cards(&model, &fields)?,
+            ModelType::Cloze => cloze_cards(&model, &fields),
+        };
+        let guid = guid.unwrap_or(guid_for(&fields));
+        Ok(Self {
+            model,
+            fields,
+            sort_field: sort_field.unwrap_or(false),
+            tags: tags.unwrap_or(vec![]),
             guid,
             cards,
         })
@@ -44,10 +63,7 @@ impl Note {
     }
 
     fn guid(&self) -> String {
-        match &self.guid {
-            None => guid_for(&self.fields),
-            Some(guid) => guid.clone(),
-        }
+        self.guid.clone()
     }
 
     fn check_number_model_fields_matches_num_fields(&self) -> Result<(), anyhow::Error> {
