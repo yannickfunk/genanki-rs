@@ -1,9 +1,11 @@
+use super::Package;
 use crate::db_entries::{DeckDbEntry, ModelDbEntry};
 use crate::model::Model;
 use crate::note::Note;
 use rusqlite::{params, Transaction};
 use serde_json::json;
 use std::collections::HashMap;
+use std::ops::RangeFrom;
 
 #[derive(Clone)]
 pub struct Deck {
@@ -60,6 +62,7 @@ impl Deck {
         &mut self,
         transaction: &Transaction,
         timestamp: f64,
+        id_gen: &mut RangeFrom<usize>,
     ) -> Result<(), anyhow::Error> {
         let decks_json_str: String =
             transaction.query_row("SELECT decks FROM col", [], |row| row.get(0))?;
@@ -83,10 +86,14 @@ impl Deck {
             "UPDATE col SET models = ?",
             [serde_json::to_string(&models)?],
         )?;
-
         for note in &mut self.notes {
-            note.write_to_db(&transaction, timestamp, self.id)?;
+            note.write_to_db(&transaction, timestamp, self.id, id_gen)?;
         }
+        Ok(())
+    }
+
+    pub fn write_to_file(self, file: &str) -> Result<(), anyhow::Error> {
+        Package::new(vec![self], vec![])?.write_to_file(file)?;
         Ok(())
     }
 }

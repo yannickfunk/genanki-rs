@@ -2,7 +2,7 @@ use crate::builders::Template;
 use crate::db_entries::{Fld, ModelDbEntry, Req, Tmpl};
 use crate::Field;
 use anyhow::anyhow;
-use handlebars::Handlebars;
+use ramhorns::{Content, Template as RamTemplate};
 use std::collections::HashMap;
 
 const DEFAULT_LATEX_PRE: &str = r#"
@@ -53,36 +53,35 @@ impl Model {
 
     pub fn new_with_options(
         id: usize,
-        name: String,
-        fields: Vec<Fld>,
-        templates: Vec<Tmpl>,
-        css: Option<String>,
+        name: &str,
+        fields: Vec<Field>,
+        templates: Vec<Template>,
+        css: Option<&str>,
         model_type: Option<ModelType>,
-        latex_pre: Option<String>,
-        latex_post: Option<String>,
+        latex_pre: Option<&str>,
+        latex_post: Option<&str>,
         sort_field_index: Option<i64>,
     ) -> Self {
         Self {
             id,
-            name,
-            fields,
-            templates,
-            css: css.unwrap_or("".to_string()),
+            name: name.to_string(),
+            fields: fields.iter().cloned().map(|f| f.into()).collect(),
+            templates: templates.iter().cloned().map(|t| t.into()).collect(),
+            css: css.unwrap_or("").to_string(),
             model_type: model_type.unwrap_or(ModelType::FrontBack),
-            latex_pre: latex_pre.unwrap_or(DEFAULT_LATEX_PRE.to_string()),
-            latex_post: latex_post.unwrap_or(DEFAULT_LATEX_POST.to_string()),
+            latex_pre: latex_pre.unwrap_or(DEFAULT_LATEX_PRE).to_string(),
+            latex_post: latex_post.unwrap_or(DEFAULT_LATEX_POST).to_string(),
             sort_field_index: sort_field_index.unwrap_or(0),
         }
     }
 
     pub fn req(&self) -> Result<Vec<Vec<Req>>, anyhow::Error> {
-        let mut handlebars = Handlebars::new();
         let sentinel = "SeNtInEl".to_string();
         let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
 
         let mut req = Vec::new();
         for (template_ord, template) in self.templates.iter().enumerate() {
-            handlebars.register_template_string("t1", template.qfmt.clone())?;
+            let tmpl = RamTemplate::new(template.qfmt.clone())?;
             let mut field_values: HashMap<String, String> = field_names
                 .iter()
                 .map(|field| (field.clone(), sentinel.clone()))
@@ -91,12 +90,12 @@ impl Model {
             for (field_ord, field) in field_names.iter().enumerate() {
                 let mut fvcopy = field_values.clone();
                 fvcopy.insert(field.clone(), "".to_string());
-                let rendered = handlebars.render("t1", &fvcopy)?;
+                let rendered = tmpl.render(&fvcopy);
                 if !rendered.contains(&sentinel) {
                     required_fields.push(field_ord);
                 }
             }
-            if required_fields.len() > 0 {
+            if !required_fields.is_empty() {
                 req.push(vec![
                     Req::Integer(template_ord),
                     Req::String("all".to_string()),
@@ -111,7 +110,7 @@ impl Model {
             for (field_ord, field) in field_names.iter().enumerate() {
                 let mut fvcopy = field_values.clone();
                 fvcopy.insert(field.clone(), sentinel.clone());
-                let rendered = handlebars.render("t1", &fvcopy)?;
+                let rendered = tmpl.render(&fvcopy);
                 if rendered.contains(&sentinel) {
                     required_fields.push(field_ord);
                 }

@@ -99,10 +99,11 @@ impl Package {
         transaction: &Transaction,
         timestamp: f64,
     ) -> Result<(), anyhow::Error> {
+        let mut id_gen = ((timestamp * 1000.0) as usize)..;
         transaction.execute_batch(APKG_SCHEMA)?;
         transaction.execute_batch(APKG_COL)?;
         for deck in &mut self.decks {
-            deck.write_to_db(&transaction, timestamp)?;
+            deck.write_to_db(&transaction, timestamp, &mut id_gen)?;
         }
         Ok(())
     }
