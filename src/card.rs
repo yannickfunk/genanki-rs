@@ -12,6 +12,9 @@ impl Card {
         Self { ord, suspend }
     }
 
+    pub fn ord(&self) -> i64 {
+        self.ord
+    }
     pub fn write_to_db(
         &self,
         transaction: &Transaction,

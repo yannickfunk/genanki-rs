@@ -3,7 +3,7 @@ use crate::db_entries::Req;
 use crate::model::{Model, ModelType};
 use crate::util::guid_for;
 use anyhow::anyhow;
-use regex::Regex;
+use fancy_regex::Regex;
 use rusqlite::{params, Transaction};
 use std::collections::HashSet;
 use std::iter;
@@ -42,26 +42,36 @@ impl Note {
         model: Model,
         fields: Vec<&str>,
         sort_field: Option<bool>,
-        tags: Option<Vec<String>>,
-        guid: Option<String>,
+        tags: Option<Vec<&str>>,
+        guid: Option<&str>,
     ) -> Result<Self, anyhow::Error> {
+        let tags = tags
+            .unwrap_or_default()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        validate_tags(&tags)?;
         let fields = fields.iter().map(|s| s.to_string()).collect();
         let cards = match model.model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
         };
-        let guid = guid.unwrap_or(guid_for(&fields));
+        let guid = guid.unwrap_or(&guid_for(&fields)).to_string();
         Ok(Self {
             model,
             fields,
             sort_field: sort_field.unwrap_or(false),
-            tags: tags.unwrap_or(vec![]),
+            tags,
             guid,
             cards,
         })
     }
     pub fn model(&self) -> Model {
         self.model.clone()
+    }
+
+    pub fn cards(&self) -> Vec<Card> {
+        self.cards.clone()
     }
 
     fn guid(&self) -> String {
@@ -77,7 +87,15 @@ impl Note {
     }
 
     fn check_invalid_html_tags_in_fields(&self) -> Result<(), anyhow::Error> {
-        //TODO:
+        for field in &self.fields {
+            let invalid_tags = find_invalid_html_tags_in_field(field);
+            if !invalid_tags.is_empty() {
+                println!(
+                    "Warning: The field {} contains the invalid html tags {:?}",
+                    field, invalid_tags
+                );
+            }
+        }
         Ok(())
     }
 
@@ -125,7 +143,7 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
     let mut card_ords: HashSet<i64> = HashSet::new();
     let mut cloze_replacements: HashSet<String> = HashSet::new();
     cloze_replacements.extend(re_findall(
-        r"\{\{[^}]*?cloze:(?:[^}]?:)*(.+?)}}",
+        r"{{[^}]*?cloze:(?:[^}]?:)*(.+?)}}",
         &model.templates()[0].qfmt,
     ));
     cloze_replacements.extend(re_findall("<%cloze:(.+?)%>", &model.templates()[0].qfmt));
@@ -133,22 +151,22 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
         let fields = model.fields();
         let mut field_index_iter = fields
             .iter()
-            .filter(|field| field.name == field_name)
             .enumerate()
+            .filter(|(i, field)| field.name == field_name)
             .map(|(i, _)| i);
         let field_value = if let Some(field_index) = field_index_iter.next() {
             self_fields[field_index].clone()
         } else {
             "".to_string()
         };
-        let updates_str = re_findall(r"\{\{c(\d+)::.+?}}", &field_value);
+        let updates_str = re_findall(r"(?s){{c(\d+)::.+?}}", &field_value);
         let updates = updates_str
             .iter()
             .map(|m| i64::from_str(m).expect("parsed from regex") - 1)
             .filter(|&m| m >= 0);
         card_ords.extend(updates);
     }
-    if card_ords.len() == 0 {
+    if card_ords.is_empty() {
         card_ords.insert(0);
     }
     card_ords
@@ -204,13 +222,278 @@ fn front_back_cards(model: &Model, self_fields: &Vec<String>) -> Result<Vec<Card
 
 fn re_findall(regex_str: &'static str, to_match: &str) -> Vec<String> {
     let regex = Regex::new(regex_str).expect("static regex");
-    if let Some(caps) = regex.captures(to_match) {
-        caps.iter()
-            .skip(1)
-            .filter_map(|m| m)
-            .map(|m| m.as_str().to_string())
-            .collect()
+    regex
+        .captures_iter(to_match)
+        .filter_map(|m| m.ok())
+        .map(|cap| {
+            cap.iter()
+                .skip(1)
+                .filter_map(|m| m)
+                .map(|m| m.as_str().to_string())
+                .collect::<Vec<String>>()
+        })
+        .flatten()
+        .collect()
+}
+
+fn validate_tags(tags: &Vec<String>) -> Result<(), anyhow::Error> {
+    if tags.iter().any(|tag| tag.contains(' ')) {
+        Err(anyhow!(
+            "One of the tags contains a whitespace, this is not allowed!"
+        ))
     } else {
-        vec![]
+        Ok(())
+    }
+}
+
+fn find_invalid_html_tags_in_field(field: &str) -> Vec<String> {
+    let regex = Regex::new(r"<(?!/?[a-z0-9]+(?: .*|/?)>)(?:.|\n)*?>").unwrap();
+    regex
+        .find_iter(field)
+        .map(|m| m.unwrap().as_str().to_string())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::apkg_col::APKG_COL;
+    use crate::apkg_schema::APKG_SCHEMA;
+    use crate::{basic_model, Field, Model, Note, Template};
+    use rusqlite::Connection;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use tempfile::NamedTempFile;
+
+    fn write_to_db_setup() -> (Connection, f64, usize, RangeFrom<usize>) {
+        let db_file = NamedTempFile::new().unwrap().into_temp_path();
+        let mut conn = Connection::open(&db_file).unwrap();
+        conn.execute_batch(APKG_SCHEMA).unwrap();
+        conn.execute_batch(APKG_COL).unwrap();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs_f64();
+        (conn, timestamp, 0, ((timestamp * 1000.0) as usize..))
+    }
+
+    #[test]
+    fn ok() {
+        let my_model = Model::new(
+            1376484377,
+            "Simple Model",
+            vec![Field::new("Question"), Field::new("Answer")],
+            vec![Template::new("Card 1")
+                .qfmt("{{Question}}")
+                .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
+        );
+        let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"]).unwrap();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        my_note
+            .write_to_db(
+                &conn.transaction().unwrap(),
+                timestamp,
+                deck_id,
+                &mut id_gen,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn tags_new() {
+        let _ = Note::new_with_options(
+            Model::new(0, "test", vec![], vec![]),
+            vec![],
+            None,
+            Some(vec!["foo", "bar", "baz"]),
+            None,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn tags_new_panic() {
+        let _ = Note::new_with_options(
+            Model::new(0, "test", vec![], vec![]),
+            vec![],
+            None,
+            Some(vec!["fo o", "bar", "baz"]),
+            None,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn num_fields_equals_model_ok() {
+        let model = Model::new(
+            1894808898,
+            "Test Model",
+            vec![
+                Field::new("Question"),
+                Field::new("Answer"),
+                Field::new("Extra"),
+            ],
+            vec![Template::new("Card 1")
+                .qfmt("{{Question}}")
+                .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
+        );
+
+        let note = Note::new(
+            model,
+            vec![
+                "Capital of Germany",
+                "Berlin",
+                "Berlin was divided by a wall until 1989",
+            ],
+        )
+        .unwrap();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        note.write_to_db(
+            &conn.transaction().unwrap(),
+            timestamp,
+            deck_id,
+            &mut id_gen,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn num_fields_less_than_model_panic() {
+        let model = Model::new(
+            1894808898,
+            "Test Model",
+            vec![
+                Field::new("Question"),
+                Field::new("Answer"),
+                Field::new("Extra"),
+            ],
+            vec![Template::new("Card 1")
+                .qfmt("{{Question}}")
+                .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
+        );
+
+        let note = Note::new(model, vec!["Capital of Germany", "Berlin"]).unwrap();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        note.write_to_db(
+            &conn.transaction().unwrap(),
+            timestamp,
+            deck_id,
+            &mut id_gen,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn num_fields_more_than_model_panic() {
+        let model = Model::new(
+            1894808898,
+            "Test Model",
+            vec![Field::new("Question"), Field::new("Answer")],
+            vec![Template::new("Card 1")
+                .qfmt("{{Question}}")
+                .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
+        );
+
+        let note = Note::new(
+            model,
+            vec![
+                "Capital of Germany",
+                "Berlin",
+                "Berlin was divided by a wall until 1989",
+            ],
+        )
+        .unwrap();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        note.write_to_db(
+            &conn.transaction().unwrap(),
+            timestamp,
+            deck_id,
+            &mut id_gen,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ok() {
+        assert_eq!(
+            find_invalid_html_tags_in_field("<h1>"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ok_with_space() {
+        assert_eq!(
+            find_invalid_html_tags_in_field(" <h1> "),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ok_multiple() {
+        assert_eq!(
+            find_invalid_html_tags_in_field("<h1>test</h1>"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ok_br() {
+        assert_eq!(
+            find_invalid_html_tags_in_field("<br>"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ok_br2() {
+        assert_eq!(
+            find_invalid_html_tags_in_field("<br/>"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ok_br3() {
+        assert_eq!(
+            find_invalid_html_tags_in_field("<br />"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ok_attrs() {
+        assert_eq!(
+            find_invalid_html_tags_in_field(r#"<h1 style="color: red">STOP</h1>"#),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ng_empty() {
+        assert_eq!(
+            find_invalid_html_tags_in_field(" hello <> goodbye"),
+            vec!["<>"]
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ng_empty_space() {
+        assert_eq!(
+            find_invalid_html_tags_in_field(" hello < > goodbye"),
+            vec!["< >"]
+        );
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ng_invalid_characters() {
+        assert_eq!(find_invalid_html_tags_in_field("<@h1>"), vec!["<@h1>"]);
+    }
+
+    #[test]
+    fn find_invalid_html_tags_in_field_ng_invalid_characters_end() {
+        assert_eq!(find_invalid_html_tags_in_field("<h1@>"), vec!["<h1@>"]);
     }
 }
