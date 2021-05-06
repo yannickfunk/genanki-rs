@@ -264,7 +264,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
     use tempfile::{NamedTempFile, TempPath};
 
-    fn write_to_db_setup() -> (Connection, f64, usize, RangeFrom<usize>, TempPath) {
+    fn write_to_db_setup() -> (Connection, f64, usize, RangeFrom<usize>) {
         let db_file = NamedTempFile::new().unwrap().into_temp_path();
         let mut conn = Connection::open(&db_file).unwrap();
         conn.execute_batch(APKG_SCHEMA).unwrap();
@@ -273,7 +273,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs_f64();
-        (conn, timestamp, 0, ((timestamp * 1000.0) as usize..), db_file)
+        (conn, timestamp, 0, ((timestamp * 1000.0) as usize..))
     }
 
     #[test]
@@ -287,7 +287,7 @@ mod tests {
                 .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
         );
         let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"]).unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen, _) = write_to_db_setup();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
         my_note
             .write_to_db(
                 &conn.transaction().unwrap(),
@@ -347,7 +347,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen, _) = write_to_db_setup();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
         note.write_to_db(
             &conn.transaction().unwrap(),
             timestamp,
@@ -374,7 +374,7 @@ mod tests {
         );
 
         let note = Note::new(model, vec!["Capital of Germany", "Berlin"]).unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen, _) = write_to_db_setup();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
         note.write_to_db(
             &conn.transaction().unwrap(),
             timestamp,
@@ -405,7 +405,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen, _) = write_to_db_setup();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
         note.write_to_db(
             &conn.transaction().unwrap(),
             timestamp,
