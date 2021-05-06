@@ -260,12 +260,11 @@ mod tests {
     use crate::apkg_col::APKG_COL;
     use crate::apkg_schema::APKG_SCHEMA;
     use crate::{basic_model, Field, Model, Note, Template};
-    use rusqlite::Connection;
+    use rusqlite::{Connection, OpenFlags};
     use std::time::{SystemTime, UNIX_EPOCH};
     use tempfile::{NamedTempFile, TempPath};
 
-    fn write_to_db_setup() -> (Connection, f64, usize, RangeFrom<usize>) {
-        let db_file = NamedTempFile::new().unwrap().into_temp_path();
+    fn write_to_db_setup(db_file: &TempPath) -> (Connection, f64, usize, RangeFrom<usize>) {
         let mut conn = Connection::open(&db_file).unwrap();
         conn.execute_batch(APKG_SCHEMA).unwrap();
         conn.execute_batch(APKG_COL).unwrap();
@@ -287,15 +286,18 @@ mod tests {
                 .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
         );
         let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"]).unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let db_file = NamedTempFile::new().unwrap().into_temp_path();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
+        let transaction = conn.transaction().unwrap();
         my_note
             .write_to_db(
-                &conn.transaction().unwrap(),
+                &transaction,
                 timestamp,
                 deck_id,
                 &mut id_gen,
             )
             .unwrap();
+        transaction.commit();
     }
 
     #[test]
@@ -347,14 +349,17 @@ mod tests {
             ],
         )
         .unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let db_file = NamedTempFile::new().unwrap().into_temp_path();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
+        let transaction = conn.transaction().unwrap();
         note.write_to_db(
-            &conn.transaction().unwrap(),
+            &transaction,
             timestamp,
             deck_id,
             &mut id_gen,
         )
         .unwrap();
+        transaction.commit();
     }
 
     #[test]
@@ -374,14 +379,17 @@ mod tests {
         );
 
         let note = Note::new(model, vec!["Capital of Germany", "Berlin"]).unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let db_file = NamedTempFile::new().unwrap().into_temp_path();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
+        let transaction = conn.transaction().unwrap();
         note.write_to_db(
-            &conn.transaction().unwrap(),
+            &transaction,
             timestamp,
             deck_id,
             &mut id_gen,
         )
         .unwrap();
+        transaction.commit();
     }
 
     #[test]
@@ -405,14 +413,17 @@ mod tests {
             ],
         )
         .unwrap();
-        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let db_file = NamedTempFile::new().unwrap().into_temp_path();
+        let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
+        let transaction = conn.transaction().unwrap();
         note.write_to_db(
-            &conn.transaction().unwrap(),
+            &transaction,
             timestamp,
             deck_id,
             &mut id_gen,
         )
         .unwrap();
+        transaction.commit();
     }
 
     #[test]
