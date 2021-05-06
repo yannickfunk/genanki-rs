@@ -20,7 +20,7 @@ pub use package::Package;
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    /*
     #[test]
     fn works() {
         let mut my_deck = Deck::new(1598559905, "Country Capitals", "");
@@ -54,4 +54,5 @@ mod tests {
         );
         my_deck.write_to_file("output.apkg").unwrap();
     }
+     */
 }
