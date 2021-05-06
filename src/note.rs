@@ -260,7 +260,7 @@ mod tests {
     use crate::apkg_col::APKG_COL;
     use crate::apkg_schema::APKG_SCHEMA;
     use crate::{basic_model, Field, Model, Note, Template};
-    use rusqlite::Connection;
+    use rusqlite::{Connection, OpenFlags};
     use std::time::{SystemTime, UNIX_EPOCH};
     use tempfile::{NamedTempFile, TempPath};
 
@@ -288,14 +288,16 @@ mod tests {
         );
         let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"]).unwrap();
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let transaction = conn.transaction().unwrap();
         my_note
             .write_to_db(
-                &conn.transaction().unwrap(),
+                &transaction,
                 timestamp,
                 deck_id,
                 &mut id_gen,
             )
             .unwrap();
+        transaction.commit();
     }
 
     #[test]
@@ -348,13 +350,15 @@ mod tests {
         )
         .unwrap();
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let transaction = conn.transaction().unwrap();
         note.write_to_db(
-            &conn.transaction().unwrap(),
+            &transaction,
             timestamp,
             deck_id,
             &mut id_gen,
         )
         .unwrap();
+        transaction.commit();
     }
 
     #[test]
@@ -375,13 +379,15 @@ mod tests {
 
         let note = Note::new(model, vec!["Capital of Germany", "Berlin"]).unwrap();
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let transaction = conn.transaction().unwrap();
         note.write_to_db(
-            &conn.transaction().unwrap(),
+            &transaction,
             timestamp,
             deck_id,
             &mut id_gen,
         )
         .unwrap();
+        transaction.commit();
     }
 
     #[test]
@@ -406,13 +412,15 @@ mod tests {
         )
         .unwrap();
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup();
+        let transaction = conn.transaction().unwrap();
         note.write_to_db(
-            &conn.transaction().unwrap(),
+            &transaction,
             timestamp,
             deck_id,
             &mut id_gen,
         )
         .unwrap();
+        transaction.commit();
     }
 
     #[test]
