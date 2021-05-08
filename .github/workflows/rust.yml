@@ -13,7 +13,7 @@ env:
 
 jobs:
 
-  build-ubuntu:
+  build-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:

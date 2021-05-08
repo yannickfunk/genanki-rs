@@ -173,7 +173,7 @@ def cleanup(fname, col):
     path = col.path
     media = path.split(".anki2")[0] + '.media'
     os.remove(path)
-    shutil.rmtree(media)   
+    shutil.rmtree(media)
                 "#;
             let cleanup = PyModule::from_code(*self.py, code, "test_cleanup", "test_cleanup.py")
                 .unwrap()
@@ -204,7 +204,6 @@ def cleanup(fname, col):
             } else {
                 package.write_to_file(out_file.to_str().unwrap()).unwrap();
             }
-
             let locals = PyDict::new(*self.py);
             let anki_col = self.col;
             locals.set_item("col", anki_col).unwrap();
@@ -267,6 +266,7 @@ def check_media(col):
     }
 
     #[test]
+    #[serial]
     fn import_anki() {
         let gil = Python::acquire_gil();
         let py = gil.python();

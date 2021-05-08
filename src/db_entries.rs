@@ -78,7 +78,7 @@ pub struct Tmpl {
     pub bqfmt: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(untagged)]
 pub enum Req {
     Integer(usize),
