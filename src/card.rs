@@ -3,8 +3,8 @@ use std::ops::RangeFrom;
 
 #[derive(Clone)]
 pub struct Card {
-    ord: i64,
-    suspend: bool,
+    pub ord: i64,
+    pub suspend: bool,
 }
 
 impl Card {
