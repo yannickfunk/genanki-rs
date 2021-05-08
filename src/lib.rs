@@ -20,11 +20,13 @@ pub use package::Package;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use db_entries::Req;
     use pyo3::types::PyDict;
     use pyo3::{
-        types::{IntoPyDict, PyString},
+        types::{PyModule, PyString},
         GILGuard, PyAny, PyErrArguments, PyObject, PyResult, Python, ToPyObject,
     };
+    use serial_test::serial;
     use tempfile::NamedTempFile;
 
     fn model() -> Model {
@@ -132,43 +134,107 @@ mod tests {
         \x01\x01\x11\x00\xff\xcc\x00\x06\x00\x10\x10\x05\xff\xda\x00\x08\x01\x01\
         \x00\x00?\x00\xd2\xcf \xff\xd9";
 
-    fn get_anki_collection(py: Python<'_>) -> &PyAny {
-        let locals = PyDict::new(py);
-        locals
-            .set_item("tmp_path", PyString::new(py, "test.anki2"))
+    pub fn anki_collection<'a>(py: &'a Python, col_fname: &str) -> &'a PyAny {
+        let code = r#"
+import anki
+import tempfile
+
+def setup(fname):
+    import uuid
+    colf_name = f"{fname}.anki2"
+    return anki.Collection(colf_name)
+"#;
+        let setup = PyModule::from_code(*py, code, "test_setup", "test_setup.py")
+            .unwrap()
+            .to_owned();
+        let col = setup
+            .call1("setup", (PyString::new(*py, col_fname),))
             .unwrap();
-        locals.set_item("anki", py.import("anki").unwrap()).unwrap();
-        let code = "anki.Collection(tmp_path)";
-        let col = py.eval(code, None, Some(&locals)).unwrap().to_owned();
         col
     }
 
-    fn import_package(mut package: Package, py: Python<'_>) -> &PyAny {
-        let out_file = NamedTempFile::new().unwrap().into_temp_path();
-        package.write_to_file(out_file.to_str().unwrap()).unwrap();
-        let locals = PyDict::new(py);
-        let anki_col = get_anki_collection(py);
-        locals.set_item("col", anki_col).unwrap();
-        locals
-            .set_item("outfile", PyString::new(py, out_file.to_str().unwrap()))
-            .unwrap();
-        locals.set_item("anki", py.import("anki").unwrap()).unwrap();
-        locals
-            .set_item(
-                "anki.importing.apkg",
-                py.import("anki.importing.apkg").unwrap(),
-            )
-            .unwrap();
-        let code = r#"
+    struct TestSetup<'a> {
+        py: &'a Python<'a>,
+        col: &'a PyAny,
+        col_fname: String,
+    }
+
+    impl<'a> Drop for TestSetup<'a> {
+        fn drop(&mut self) {
+            let code = r#"
+import os
+import time
+def cleanup(fname, col):
+    col.close()
+    path = col.path
+    media = path.split(".anki2")[0] + '.media'
+    os.remove(path)
+    os.rmdir(media)   
+                "#;
+            let cleanup = PyModule::from_code(*self.py, code, "test_cleanup", "test_cleanup.py")
+                .unwrap()
+                .to_owned();
+            cleanup
+                .call(
+                    "cleanup",
+                    (PyString::new(*self.py, &self.col_fname), self.col),
+                    None,
+                )
+                .unwrap();
+        }
+    }
+
+    impl<'a> TestSetup<'a> {
+        pub fn new(py: &'a Python<'a>) -> Self {
+            let col_fname = uuid::Uuid::new_v4().to_string();
+            let col = anki_collection(py, &col_fname);
+            Self { py, col, col_fname }
+        }
+
+        pub fn import_package(&mut self, mut package: Package) {
+            let out_file = NamedTempFile::new().unwrap().into_temp_path();
+            package.write_to_file(out_file.to_str().unwrap()).unwrap();
+            let locals = PyDict::new(*self.py);
+            let anki_col = self.col;
+            locals.set_item("col", anki_col).unwrap();
+            locals
+                .set_item(
+                    "outfile",
+                    PyString::new(*self.py, out_file.to_str().unwrap()),
+                )
+                .unwrap();
+            let code = r#"
+import anki
+import anki.importing.apkg
 importer = anki.importing.apkg.AnkiPackageImporter(col, outfile)
 importer.run()
-res = str(col)
+res = col
         "#;
-        py.run(code, None, Some(locals)).unwrap();
-        locals.get_item("res").unwrap()
+            self.py.run(code, None, Some(locals)).unwrap();
+            let col = locals.get_item("res").unwrap();
+            self.col = col;
+        }
+
+        fn check_col(&mut self, condition_str: &str) -> bool {
+            let code = format!(
+                r#"
+def assertion(col):
+    return {}
+        "#,
+                condition_str
+            );
+            let assertion =
+                PyModule::from_code(*self.py, &code, "assertion", "assertion.py").unwrap();
+            assertion
+                .call1("assertion", (self.col,))
+                .unwrap()
+                .extract()
+                .unwrap()
+        }
     }
 
     #[test]
+    #[serial]
     fn import_anki() {
         let gil = Python::acquire_gil();
         let py = gil.python();
@@ -176,32 +242,123 @@ res = str(col)
     }
 
     #[test]
+    #[serial]
     fn generated_deck_can_be_imported() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut deck = Deck::new(123456, "foodeck", "");
-        deck.add_note(Note::new(model(), vec!["a", "b"]).unwrap());
-        let _ = import_package(Package::new(vec![deck], vec![]).unwrap(), py);
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            let mut deck = Deck::new(123456, "foodeck", "");
+            deck.add_note(Note::new(model(), vec!["a", "b"]).unwrap());
+            setup.import_package(Package::new(vec![deck], vec![]).unwrap());
+            assert!(
+                setup.check_col("len(col.decks.all()) == 2 and {i['name'] for i in col.decks.all()} ==  {'Default', 'foodeck'}")
+            );
+        });
     }
 
     #[test]
+    #[serial]
     fn generated_deck_has_valid_cards() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let mut deck = Deck::new(123456, "foodeck", "");
-        deck.add_note(Note::new(cn_model(), vec!["a", "b", "c"]).unwrap());
-        deck.add_note(Note::new(cn_model(), vec!["d", "e", "f"]).unwrap());
-        deck.add_note(Note::new(cn_model(), vec!["g", "h", "i"]).unwrap());
-        let anki_col = import_package(Package::new(vec![deck], vec![]).unwrap(), py);
-        let len: String = py
-            .eval(
-                "print(col)",
-                None,
-                Some([("col", anki_col)].into_py_dict(py)),
-            )
-            .unwrap()
-            .extract()
-            .unwrap();
-        assert_eq!(len, "hallo");
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            let mut deck = Deck::new(123456, "foodeck", "");
+            deck.add_note(Note::new(cn_model(), vec!["a", "b", "c"]).unwrap());
+            deck.add_note(Note::new(cn_model(), vec!["d", "e", "f"]).unwrap());
+            deck.add_note(Note::new(cn_model(), vec!["g", "h", "i"]).unwrap());
+            setup.import_package(Package::new(vec![deck], vec![]).unwrap());
+            assert!(setup.check_col("len([col.getCard(i) for i in col.findCards('')]) == 6"));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn multi_deck_package() {
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            let mut deck1 = Deck::new(123456, "foodeck", "");
+            let mut deck2 = Deck::new(654321, "bardeck", "");
+            let note = Note::new(model(), vec!["a", "b"]).unwrap();
+            deck1.add_note(note.clone());
+            deck2.add_note(note);
+            setup.import_package(Package::new(vec![deck1, deck2], vec![]).unwrap());
+            assert!(setup.check_col("len(col.decks.all()) == 3"));
+        });
+    }
+
+    #[test]
+    fn model_req() {
+        let req = model().req().unwrap();
+        assert_eq!(
+            req,
+            vec![vec![
+                Req::Integer(0),
+                Req::String("all".to_string()),
+                Req::IntegerArray(vec![0])
+            ]]
+        );
+    }
+
+    #[test]
+    fn model_req_cn() {
+        let req = cn_model().req().unwrap();
+        assert_eq!(
+            req,
+            vec![
+                vec![
+                    Req::Integer(0),
+                    Req::String("all".to_string()),
+                    Req::IntegerArray(vec![0])
+                ],
+                vec![
+                    Req::Integer(1),
+                    Req::String("all".to_string()),
+                    Req::IntegerArray(vec![1])
+                ]
+            ]
+        );
+    }
+
+    #[test]
+    fn model_req_with_hint() {
+        let req = model_with_hint().req().unwrap();
+        assert_eq!(
+            req,
+            vec![vec![
+                Req::Integer(0),
+                Req::String("any".to_string()),
+                Req::IntegerArray(vec![0, 1])
+            ]]
+        );
+    }
+
+    #[test]
+    fn notes_generate_cards_based_on_req_cn() {
+        let note1 = Note::new(cn_model(), vec!["中國", "中国", "China"]).unwrap();
+        let note2 = Note::new(cn_model(), vec!["你好", "", "hello"]).unwrap();
+
+        assert_eq!(note1.cards().len(), 2);
+        assert_eq!(note1.cards()[0].ord(), 0);
+        assert_eq!(note1.cards()[1].ord(), 1);
+
+        assert_eq!(note2.cards().len(), 1);
+        assert_eq!(note2.cards()[0].ord(), 0)
+    }
+
+    #[test]
+    fn note_generate_cards_based_on_req_with_hint() {
+        let note1 = Note::new(
+            model_with_hint(),
+            vec!["capital of California", "", "Sacramento"],
+        )
+        .unwrap();
+        let note2 = Note::new(
+            model_with_hint(),
+            vec!["capital of Iowa", "French for \"The Moines\"", "Des Moines"],
+        )
+        .unwrap();
+
+        assert_eq!(note1.cards().len(), 1);
+        assert_eq!(note1.cards()[0].ord(), 0);
+        assert_eq!(note2.cards().len(), 1);
+        assert_eq!(note2.cards()[0].ord(), 0);
     }
 }

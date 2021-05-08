@@ -21,3 +21,4 @@ uuid = { version = "0.8", features = ["v4"] }
 
 [dev-dependencies]
 pyo3 = "0.13.2"
+serial_test = "0.5.1"
