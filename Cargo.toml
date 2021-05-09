@@ -5,6 +5,8 @@ authors = ["Yannick Funk <yannickfunk@yahoo.de>"]
 edition = "2018"
 description = "Crate to create decks for the open source flashcard platform Anki. Based on Python library genanki"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/yannickfunk/genanki-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
