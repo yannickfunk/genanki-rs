@@ -180,7 +180,7 @@ pub use anyhow::Error;
 pub use builders::{Field, Template};
 pub use builtin_models::*;
 pub use deck::Deck;
-pub use model::Model;
+pub use model::{Model, ModelType};
 pub use note::Note;
 pub use package::Package;
 
