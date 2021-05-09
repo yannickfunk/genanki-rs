@@ -132,9 +132,9 @@ let my_model = Model::new(
 Then, set the `MyMedia` field on your `Note` to `[sound:sound.mp3]` for audio and `<img src="image.jpg">` for images (e.g):
 
 ```rust
-let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires", "[sound:sound.mp3]"]).unwrap();
+let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires", "[sound:sound.mp3]"])?;
 // or
-let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires", r#"<img src="image.jpg">"#]).unwrap();
+let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires", r#"<img src="image.jpg">"#])?;
 ```
 
 You *cannot* put `<img src="{MyMedia}">` in the template and `image.jpg` in the field. See these sections in the Anki manual for more information: [Importing Media](https://docs.ankiweb.net/#/importing?id=importing-media) and [Media & LaTeX](https://docs.ankiweb.net/#/templates/fields?id=media-amp-latex).
