@@ -123,7 +123,7 @@ pub fn cloze_model() -> Model {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{Deck, Note, Package};
+    use super::super::{Deck, Note};
     use super::*;
     use tempfile::NamedTempFile;
 

@@ -2,7 +2,7 @@ use crate::builders::Template;
 use crate::db_entries::{Fld, ModelDbEntry, Req, Tmpl};
 use crate::Field;
 use anyhow::anyhow;
-use ramhorns::{Content, Template as RamTemplate};
+use ramhorns::{Template as RamTemplate};
 use std::collections::HashMap;
 
 const DEFAULT_LATEX_PRE: &str = r#"

@@ -24,7 +24,7 @@ mod tests {
     use pyo3::types::PyDict;
     use pyo3::{
         types::{PyModule, PyString},
-        PyAny, PyObject, PyResult, Python, ToPyObject,
+        PyAny, Python,
     };
     use serial_test::serial;
     use std::io::Write;

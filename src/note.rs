@@ -6,7 +6,6 @@ use anyhow::anyhow;
 use fancy_regex::Regex;
 use rusqlite::{params, Transaction};
 use std::collections::HashSet;
-use std::iter;
 use std::ops::RangeFrom;
 use std::str::FromStr;
 
@@ -152,7 +151,7 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
         let mut field_index_iter = fields
             .iter()
             .enumerate()
-            .filter(|(i, field)| field.name == field_name)
+            .filter(|(_, field)| field.name == field_name)
             .map(|(i, _)| i);
         let field_value = if let Some(field_index) = field_index_iter.next() {
             self_fields[field_index].clone()
@@ -259,13 +258,13 @@ mod tests {
     use super::*;
     use crate::apkg_col::APKG_COL;
     use crate::apkg_schema::APKG_SCHEMA;
-    use crate::{basic_model, Field, Model, Note, Template};
-    use rusqlite::{Connection, OpenFlags};
+    use crate::{Field, Model, Note, Template};
+    use rusqlite::Connection;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tempfile::{NamedTempFile, TempPath};
 
     fn write_to_db_setup(db_file: &TempPath) -> (Connection, f64, usize, RangeFrom<usize>) {
-        let mut conn = Connection::open(&db_file).unwrap();
+        let conn = Connection::open(&db_file).unwrap();
         conn.execute_batch(APKG_SCHEMA).unwrap();
         conn.execute_batch(APKG_COL).unwrap();
         let timestamp = SystemTime::now()
@@ -290,14 +289,9 @@ mod tests {
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
         let transaction = conn.transaction().unwrap();
         my_note
-            .write_to_db(
-                &transaction,
-                timestamp,
-                deck_id,
-                &mut id_gen,
-            )
+            .write_to_db(&transaction, timestamp, deck_id, &mut id_gen)
             .unwrap();
-        transaction.commit();
+        transaction.commit().unwrap();
     }
 
     #[test]
@@ -352,14 +346,9 @@ mod tests {
         let db_file = NamedTempFile::new().unwrap().into_temp_path();
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
         let transaction = conn.transaction().unwrap();
-        note.write_to_db(
-            &transaction,
-            timestamp,
-            deck_id,
-            &mut id_gen,
-        )
-        .unwrap();
-        transaction.commit();
+        note.write_to_db(&transaction, timestamp, deck_id, &mut id_gen)
+            .unwrap();
+        transaction.commit().unwrap();
     }
 
     #[test]
@@ -382,14 +371,9 @@ mod tests {
         let db_file = NamedTempFile::new().unwrap().into_temp_path();
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
         let transaction = conn.transaction().unwrap();
-        note.write_to_db(
-            &transaction,
-            timestamp,
-            deck_id,
-            &mut id_gen,
-        )
-        .unwrap();
-        transaction.commit();
+        note.write_to_db(&transaction, timestamp, deck_id, &mut id_gen)
+            .unwrap();
+        transaction.commit().unwrap();
     }
 
     #[test]
@@ -416,14 +400,9 @@ mod tests {
         let db_file = NamedTempFile::new().unwrap().into_temp_path();
         let (mut conn, timestamp, deck_id, mut id_gen) = write_to_db_setup(&db_file);
         let transaction = conn.transaction().unwrap();
-        note.write_to_db(
-            &transaction,
-            timestamp,
-            deck_id,
-            &mut id_gen,
-        )
-        .unwrap();
-        transaction.commit();
+        note.write_to_db(&transaction, timestamp, deck_id, &mut id_gen)
+            .unwrap();
+        transaction.commit().unwrap();
     }
 
     #[test]

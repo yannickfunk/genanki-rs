@@ -1,10 +1,9 @@
-use rusqlite::{params, Connection, Transaction};
+use rusqlite::{Connection, Transaction};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::NamedTempFile;
-use zip::{write::FileOptions, CompressionMethod, ZipWriter};
+use zip::{write::FileOptions, ZipWriter};
 
 use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};

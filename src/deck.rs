@@ -3,7 +3,6 @@ use crate::db_entries::{DeckDbEntry, ModelDbEntry};
 use crate::model::Model;
 use crate::note::Note;
 use rusqlite::{params, Transaction};
-use serde_json::json;
 use std::collections::HashMap;
 use std::ops::RangeFrom;
 
