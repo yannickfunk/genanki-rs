@@ -8,6 +8,14 @@ With `genanki-rs` you can easily generate decks for the popular open source flas
 
 ![example workflow](https://github.com/yannickfunk/genanki-rs/actions/workflows/rust.yml/badge.svg)
 
+## How to use
+Add 
+```toml
+[dependencies]
+genanki-rs = "0.0.2"
+```
+to your `Cargo.toml` or find another version on [*crates.io*](https://crates.io/crates/genanki-rs)
+
 ## Notes
 The basic unit in Anki is the `Note`, which contains a fact to memorize. `Note`s correspond to one or more `Card`s.
 
