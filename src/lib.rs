@@ -281,6 +281,10 @@ def check_media(col):
                 .extract()
                 .unwrap()
         }
+
+        fn col(&self) -> &PyAny {
+            self.col
+        }
     }
 
     #[test]
@@ -496,6 +500,89 @@ def check_media(col):
             assert_eq!(missing.len(), 2);
             assert!(missing.contains(&"missing.jpg".to_string()));
             assert!(missing.contains(&"missing.mp3".to_string()));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn deck_with_description() {
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            let mut deck = Deck::new(112233, "foodeck", "Very nice deck");
+            let note = Note::new(model(), vec!["a", "b"]).unwrap();
+            deck.add_note(note);
+            setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
+            assert!(setup.check_col(
+                "len(col.decks.all()) == 2 and col.decks.all()[1]['desc'] == 'Very nice deck'"
+            ))
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn card_added_date_is_recent() {
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            let mut deck = Deck::new(1104693946, "foodeck", "");
+            let note = Note::new(model(), vec!["a", "b"]).unwrap();
+            deck.add_note(note);
+            setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
+            assert!(
+                setup.check_col("col.getNote(col.findNotes('')[0]).cards()[0].id > 1577836800000")
+            )
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn model_with_latex_pre_and_post() {
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            let mut deck = Deck::new(69696969696, "foodeck", "");
+            let note = Note::new(model_with_latex(), vec!["a", "b"]).unwrap();
+            deck.add_note(note);
+            setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
+            let col = setup.col();
+            let code = r#"
+def latex(col, key):
+    anki_note = col.getNote(col.findNotes('')[0])
+    return anki_note.model()[key]
+                "#;
+            let assertion = PyModule::from_code(py, code, "latex", "latex.py")
+                .unwrap()
+                .to_owned();
+            assert_eq!(
+                assertion
+                    .call("latex", (col, PyString::new(py, "latexPre"),), None,)
+                    .unwrap()
+                    .extract::<String>()
+                    .unwrap(),
+                CUSTOM_LATEX_PRE
+            );
+            assert_eq!(
+                assertion
+                    .call("latex", (col, PyString::new(py, "latexPost"),), None,)
+                    .unwrap()
+                    .extract::<String>()
+                    .unwrap(),
+                CUSTOM_LATEX_POST
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn test_model_with_sort_field_index() {
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            let mut deck = Deck::new(1104693946, "foodeck", "");
+            let note = Note::new(model_with_sort_field_index(), vec!["a", "b"]).unwrap();
+            deck.add_note(note);
+            setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
+            assert!(setup.check_col(&format!(
+                "col.getNote(col.findNotes('')[0]).model()['sortf'] == {}",
+                CUSTOM_SORT_FIELD_INDEX
+            )));
         });
     }
 }
