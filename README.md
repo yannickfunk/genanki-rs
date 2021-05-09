@@ -18,7 +18,7 @@ use genanki_rs::{Note, Error};
 
 fn main() -> Result<(), Error> {
     // let my_model = ...
-    let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"]).unwrap();
+    let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"])?;
     Ok(())
 }
 ```
