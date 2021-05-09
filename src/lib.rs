@@ -136,12 +136,6 @@ mod tests {
         \x00\x00?\x00\xd2\xcf \xff\xd9";
 
     pub fn anki_collection<'a>(py: &'a Python, col_fname: &str) -> &'a PyAny {
-        let curr = if let Ok(curr) = std::env::current_dir() {
-            curr
-        } else {
-            std::thread::sleep(std::time::Duration::from_secs(5));
-            std::env::current_dir().unwrap()
-        };
         let code = r#"
 import anki
 import tempfile
@@ -157,7 +151,6 @@ def setup(fname):
         let col = setup
             .call1("setup", (PyString::new(*py, col_fname),))
             .unwrap();
-        std::env::set_current_dir(&curr).unwrap();
         col
     }
 
@@ -166,6 +159,7 @@ def setup(fname):
         col: &'a PyAny,
         col_fname: String,
         tmp_files: Vec<TempPath>,
+        tmp_dirs: Vec<TempDir>,
     }
 
     impl<'a> Drop for TestSetup<'a> {
@@ -196,13 +190,24 @@ def cleanup(fname, col):
 
     impl<'a> TestSetup<'a> {
         pub fn new(py: &'a Python<'a>) -> Self {
+            let mut tmp_dirs = vec![];
+            let curr = if let Ok(curr) = std::env::current_dir() {
+                curr
+            } else {
+                let tmp_dir = TempDir::new().unwrap();
+                std::env::set_current_dir(tmp_dir.path()).unwrap();
+                tmp_dirs.push(tmp_dir);
+                std::env::current_dir().unwrap()
+            };
             let col_fname = uuid::Uuid::new_v4().to_string();
             let col = anki_collection(py, &col_fname);
+            std::env::set_current_dir(curr).unwrap();
             Self {
                 py,
                 col,
                 col_fname,
                 tmp_files: vec![],
+                tmp_dirs,
             }
         }
 
