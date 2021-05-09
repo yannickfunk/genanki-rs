@@ -17,8 +17,8 @@ anyhow = "1.0.40"
 fancy-regex = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 ramhorns = "0.10.2"
-uuid = { version = "0.8", features = ["v4"] }
 
 [dev-dependencies]
 pyo3 = "0.13.2"
 serial_test = "0.5.1"
+uuid = { version = "0.8", features = ["v4"] }

@@ -160,7 +160,7 @@ def setup(fname):
         col: &'a PyAny,
         col_fname: String,
         tmp_files: Vec<TempPath>,
-        tmp_dirs: Vec<TempDir>,
+        _tmp_dirs: Vec<TempDir>,
     }
 
     impl<'a> Drop for TestSetup<'a> {
@@ -191,13 +191,13 @@ def cleanup(fname, col):
 
     impl<'a> TestSetup<'a> {
         pub fn new(py: &'a Python<'a>) -> Self {
-            let mut tmp_dirs = vec![];
+            let mut _tmp_dirs = vec![];
             let curr = if let Ok(curr) = std::env::current_dir() {
                 curr
             } else {
                 let tmp_dir = TempDir::new().unwrap();
                 std::env::set_current_dir(tmp_dir.path()).unwrap();
-                tmp_dirs.push(tmp_dir);
+                _tmp_dirs.push(tmp_dir);
                 std::env::current_dir().unwrap()
             };
             let col_fname = uuid::Uuid::new_v4().to_string();
@@ -208,7 +208,7 @@ def cleanup(fname, col):
                 col,
                 col_fname,
                 tmp_files: vec![],
-                tmp_dirs,
+                _tmp_dirs,
             }
         }
 
@@ -513,9 +513,8 @@ def check_media(col):
             let note = Note::new(model(), vec!["a", "b"]).unwrap();
             deck.add_note(note);
             setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
-            assert!(setup.check_col(
-                "len(col.decks.all()) == 2 and 'Very nice deck' in [col.decks.all()[1]['desc'], col.decks.all()[0]['desc']]"
-            ))
+            assert!(setup
+                .check_col("len(col.decks.all()) == 2 and 'Very nice deck' in [e['desc'] for e in col.decks.all()[:2]]"))
         });
     }
 
