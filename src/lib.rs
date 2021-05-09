@@ -513,7 +513,7 @@ def check_media(col):
             deck.add_note(note);
             setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
             assert!(setup.check_col(
-                "len(col.decks.all()) == 2 and col.decks.all()[1]['desc'] == 'Very nice deck'"
+                "len(col.decks.all()) == 2 and 'Very nice deck' in [col.decks.all()[1]['desc'], col.decks.all()[0]['desc']]"
             ))
         });
     }
