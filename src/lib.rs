@@ -136,7 +136,7 @@ mod tests {
         \x00\x00?\x00\xd2\xcf \xff\xd9";
 
     pub fn anki_collection<'a>(py: &'a Python, col_fname: &str) -> &'a PyAny {
-        let curr = std::env::current_dir().unwrap();
+        let curr = std::env::current_dir().expect("No current dir");
         let code = r#"
 import anki
 import tempfile
