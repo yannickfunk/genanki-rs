@@ -9,6 +9,7 @@ use std::collections::HashSet;
 use std::ops::RangeFrom;
 use std::str::FromStr;
 
+/// Note (Flashcard) to be added to a `Deck`
 #[derive(Clone)]
 pub struct Note {
     model: Model,
@@ -20,6 +21,16 @@ pub struct Note {
 }
 
 impl Note {
+    /// Creates a new Note with a new `model` and `fields`
+    ///
+    /// Returns `Err` if the fields are not matching the model or if the fields are invalid
+    ///
+    /// Example:
+    /// ```
+    /// use genanki_rs::{Note, basic_model};
+    ///
+    /// let note = Note::new(basic_model(), vec!["What is the capital of France?", "Paris"]);
+    /// ```
     pub fn new(model: Model, fields: Vec<&str>) -> Result<Self, anyhow::Error> {
         let fields = fields.iter().map(|&s| s.to_string()).collect();
         let cards = match model.model_type() {
@@ -37,6 +48,12 @@ impl Note {
         })
     }
 
+    /// Creates a new Note with a new `model`, `fields` and custom parameters:
+    /// * `sort_field` - whether to sort field, default is `false`
+    /// * `tags` - List of tags
+    /// * `guid` - Custom unique note id, default is hash of all fields
+    ///
+    /// Returns `Err` if tags or fields are invalid
     pub fn new_with_options(
         model: Model,
         fields: Vec<&str>,
@@ -65,11 +82,12 @@ impl Note {
             cards,
         })
     }
-    pub fn model(&self) -> Model {
+    pub(super) fn model(&self) -> Model {
         self.model.clone()
     }
 
-    pub fn cards(&self) -> Vec<Card> {
+    #[allow(dead_code)]
+    pub(super) fn cards(&self) -> Vec<Card> {
         self.cards.clone()
     }
 
@@ -105,7 +123,7 @@ impl Note {
     fn format_tags(&self) -> String {
         format!(" {} ", self.tags.join(" "))
     }
-    pub fn write_to_db(
+    pub(super) fn write_to_db(
         &self,
         transaction: &Transaction,
         timestamp: f64,

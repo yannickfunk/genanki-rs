@@ -2,7 +2,7 @@ use crate::builders::Template;
 use crate::db_entries::{Fld, ModelDbEntry, Req, Tmpl};
 use crate::Field;
 use anyhow::anyhow;
-use ramhorns::{Template as RamTemplate};
+use ramhorns::Template as RamTemplate;
 use std::collections::HashMap;
 
 const DEFAULT_LATEX_PRE: &str = r#"
@@ -17,12 +17,16 @@ const DEFAULT_LATEX_PRE: &str = r#"
 "#;
 const DEFAULT_LATEX_POST: &str = r"\end{document}";
 
+/// `FrontBack` or `Cloze` to determine the type of a Model.
+///
+/// When creating a Model, the default is `FrontBack`
 #[derive(Clone, PartialEq, Eq)]
 pub enum ModelType {
     FrontBack,
     Cloze,
 }
 
+/// `Model` to determine the structure of a `Note`
 #[derive(Clone)]
 pub struct Model {
     pub id: usize,
@@ -37,6 +41,21 @@ pub struct Model {
 }
 
 impl Model {
+    /// Creates a new model with a unique(!) `ìd`, a `name`, `fields` and  `templates`
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use genanki_rs::{Model, Field, Template};
+    /// let model = Model::new(
+    ///     1607392319,
+    ///     "Simple Model",
+    ///     vec![Field::new("Question"), Field::new("Answer")],
+    ///     vec![Template::new("Card 1")
+    ///         .qfmt("{{Question}}")
+    ///         .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
+    /// );
+    /// ```
     pub fn new(id: usize, name: &str, fields: Vec<Field>, templates: Vec<Template>) -> Self {
         Self {
             id,
@@ -51,6 +70,12 @@ impl Model {
         }
     }
 
+    /// Creates a new model with a unique(!) `ìd`, a `name`, `fields` and  `templates` and custom parameters:
+    /// * `css`: Custom css to be applied to the cards
+    /// * `model_type`: `Cloze` or `FrontBack`, default is `FrontBack`
+    /// * `latex_pre`: Custom latex declarations at the beginning of a card.
+    /// * `latex_post`: Custom latex declarations at the end of a card.
+    /// * `sort_field_index`: Custom sort field index
     pub fn new_with_options(
         id: usize,
         name: &str,
@@ -75,7 +100,7 @@ impl Model {
         }
     }
 
-    pub fn req(&self) -> Result<Vec<Vec<Req>>, anyhow::Error> {
+    pub(super) fn req(&self) -> Result<Vec<Vec<Req>>, anyhow::Error> {
         let sentinel = "SeNtInEl".to_string();
         let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
 
@@ -128,18 +153,16 @@ impl Model {
         Ok(req)
     }
 
-    pub fn fields(&self) -> Vec<Fld> {
+    pub(super) fn fields(&self) -> Vec<Fld> {
         self.fields.clone()
     }
-
-    pub fn templates(&self) -> Vec<Tmpl> {
+    pub(super) fn templates(&self) -> Vec<Tmpl> {
         self.templates.clone()
     }
-
-    pub fn model_type(&self) -> ModelType {
+    pub(super) fn model_type(&self) -> ModelType {
         self.model_type.clone()
     }
-    pub fn to_model_db_entry(
+    pub(super) fn to_model_db_entry(
         &mut self,
         timestamp: f64,
         deck_id: usize,
@@ -175,7 +198,13 @@ impl Model {
             latex_pre: self.latex_pre.clone(),
         })
     }
-    pub fn to_json(&mut self, timestamp: f64, deck_id: usize) -> Result<String, anyhow::Error> {
+
+    #[allow(dead_code)]
+    pub(super) fn to_json(
+        &mut self,
+        timestamp: f64,
+        deck_id: usize,
+    ) -> Result<String, anyhow::Error> {
         Ok(serde_json::to_string(
             &self.to_model_db_entry(timestamp, deck_id)?,
         )?)

@@ -6,6 +6,7 @@ use rusqlite::{params, Transaction};
 use std::collections::HashMap;
 use std::ops::RangeFrom;
 
+/// A flashcard deck which can be written into an .apkg file.
 #[derive(Clone)]
 pub struct Deck {
     id: usize,
@@ -16,6 +17,9 @@ pub struct Deck {
 }
 
 impl Deck {
+    /// Creates a new deck with an `id`, `name` and `description`.
+    ///
+    /// `id` should always be unique when creating multiple decks.
     pub fn new(id: usize, name: &str, description: &str) -> Self {
         Self {
             id,
@@ -26,15 +30,25 @@ impl Deck {
         }
     }
 
+    /// Adds a `note` (Flashcard) to the deck.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// use genanki_rs::{Deck, Note, basic_model};
+    ///
+    /// let mut my_deck = Deck::new(1234, "Example deck", "This is an example deck");
+    /// my_deck.add_note(Note::new(basic_model(), vec!["What is the capital of France?", "Paris"])?);
+    /// ```
     pub fn add_note(&mut self, note: Note) {
         self.notes.push(note);
     }
 
-    pub fn add_model(&mut self, model: Model) {
+    fn add_model(&mut self, model: Model) {
         self.models.insert(model.id, model);
     }
 
-    pub fn to_deck_db_entry(&self) -> DeckDbEntry {
+    fn to_deck_db_entry(&self) -> DeckDbEntry {
         DeckDbEntry {
             collapsed: false,
             conf: 1,
@@ -52,12 +66,14 @@ impl Deck {
             usn: -1,
         }
     }
-    pub fn to_json(&self) -> String {
+
+    #[allow(dead_code)]
+    fn to_json(&self) -> String {
         let db_entry: DeckDbEntry = self.to_deck_db_entry();
         serde_json::to_string(&db_entry).expect("Should always serialize")
     }
 
-    pub fn write_to_db(
+    pub(super) fn write_to_db(
         &mut self,
         transaction: &Transaction,
         timestamp: f64,
@@ -91,6 +107,29 @@ impl Deck {
         Ok(())
     }
 
+    /// Packages a deck and writes it to a new `.apkg` file. This file can then be imported in Anki.
+    ///
+    /// Returns `Err` if the file can not be created.
+    ///
+    /// Example:
+    /// ```rust
+    /// use genanki_rs::{Deck, Note, basic_model};
+    ///
+    /// let mut my_deck = Deck::new(1234, "Example deck", "This is an example deck");
+    /// my_deck.add_note(Note::new(basic_model(), vec!["What is the capital of France?", "Paris"])?);
+    ///
+    /// my_deck.write_to_file("output.apkg")?;
+    /// ```
+    ///
+    /// This is equivalent to:
+    /// ```rust
+    /// use genanki_rs::{Deck, Note, basic_model, Package};
+    ///
+    /// let mut my_deck = Deck::new(1234, "Example deck", "This is an example deck");
+    /// my_deck.add_note(Note::new(basic_model(), vec!["What is the capital of France?", "Paris"])?);
+    ///
+    /// Package::new(vec![my_deck], vec![])?.write_to_file("output.apkg")?;
+    /// ```
     pub fn write_to_file(self, file: &str) -> Result<(), anyhow::Error> {
         Package::new(vec![self], vec![])?.write_to_file(file)?;
         Ok(())
