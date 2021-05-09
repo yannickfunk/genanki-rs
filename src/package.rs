@@ -93,7 +93,7 @@ impl Package {
         Ok(())
     }
 
-    pub fn write_to_db(
+    fn write_to_db(
         &mut self,
         transaction: &Transaction,
         timestamp: f64,
