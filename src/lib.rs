@@ -28,7 +28,7 @@ mod tests {
     };
     use serial_test::serial;
     use std::io::Write;
-    use tempfile::{NamedTempFile, TempDir};
+    use tempfile::{NamedTempFile, TempDir, TempPath};
 
     fn model() -> Model {
         Model::new(
@@ -160,6 +160,7 @@ def setup(fname):
         py: &'a Python<'a>,
         col: &'a PyAny,
         col_fname: String,
+        tmp_files: Vec<TempPath>,
     }
 
     impl<'a> Drop for TestSetup<'a> {
@@ -192,11 +193,18 @@ def cleanup(fname, col):
         pub fn new(py: &'a Python<'a>) -> Self {
             let col_fname = uuid::Uuid::new_v4().to_string();
             let col = anki_collection(py, &col_fname);
-            Self { py, col, col_fname }
+            Self {
+                py,
+                col,
+                col_fname,
+                tmp_files: vec![],
+            }
         }
 
         pub fn import_package(&mut self, mut package: Package, timestamp: Option<f64>) {
-            let out_file = NamedTempFile::new().unwrap().into_temp_path();
+            self.tmp_files
+                .push(NamedTempFile::new().unwrap().into_temp_path());
+            let out_file = self.tmp_files.last().unwrap();
             if let Some(ts) = timestamp {
                 package
                     .write_to_file_timestamp(out_file.to_str().unwrap(), ts)
