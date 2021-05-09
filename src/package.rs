@@ -13,12 +13,41 @@ use crate::apkg_schema::APKG_SCHEMA;
 use crate::deck::Deck;
 use std::str::FromStr;
 
+/// `Package` to pack `Deck`s and `media_files` and write them to a `.apkg` file
+///
+/// Example:
+/// ```rust
+/// use genanki_rs::{Package, Deck, Note, Model, Field, Template};
+///
+/// let model = Model::new(
+///     1607392319,
+///     "Simple Model",
+///     vec![
+///         Field::new("Question"),
+///         Field::new("Answer"),
+///         Field::new("MyMedia"),
+///     ],
+///     vec![Template::new("Card 1")
+///         .qfmt("{{Question}}{{Question}}<br>{{MyMedia}}")
+///         .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
+/// );
+///
+/// let mut deck = Deck::new(1234, "Example Deck", "Example Deck with media");
+/// deck.add_note(Note::new(model.clone(), vec!["What is the capital of France?", "Paris", "[sound:sound.mp3]"])?);
+/// deck.add_note(Note::new(model.clone(), vec!["What is the capital of France?", "Paris", r#"<img src="image.jpg">"#])?);
+///
+/// let mut package = Package::new(vec![my_deck], vec!["sound.mp3", "images/image.jpg"])?;
+/// package.write_to_file("output.apkg")?;
+/// ```
 pub struct Package {
     decks: Vec<Deck>,
     media_files: Vec<PathBuf>,
 }
 
 impl Package {
+    /// Create a new package with `decks` and `media_files`
+    ///
+    /// Returns `Err` if `media_files` are invalid
     pub fn new(decks: Vec<Deck>, media_files: Vec<&str>) -> Result<Self, anyhow::Error> {
         let media_files = media_files
             .iter()
@@ -26,10 +55,17 @@ impl Package {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self { decks, media_files })
     }
+
+    /// Writes the package to a file
+    ///
+    /// Returns `Err` if the `file` cannot be created
     pub fn write_to_file(&mut self, file: &str) -> Result<(), anyhow::Error> {
         self.write_to_file_maybe_timestamp(file, None)
     }
 
+    /// Writes the package to a file using a timestamp
+    ///
+    /// Returns `Err` if the `file` cannot be created
     pub fn write_to_file_timestamp(
         &mut self,
         file: &str,

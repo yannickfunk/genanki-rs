@@ -110,6 +110,7 @@ impl Deck {
     /// Packages a deck and writes it to a new `.apkg` file. This file can then be imported in Anki.
     ///
     /// Returns `Err` if the file can not be created.
+    ///
     /// Example:
     /// ```rust
     /// use genanki_rs::{Deck, Note, basic_model};
@@ -118,6 +119,16 @@ impl Deck {
     /// my_deck.add_note(Note::new(basic_model(), vec!["What is the capital of France?", "Paris"])?);
     ///
     /// my_deck.write_to_file("output.apkg")?;
+    /// ```
+    ///
+    /// This is equivalent to:
+    /// ```rust
+    /// use genanki_rs::{Deck, Note, basic_model, Package};
+    ///
+    /// let mut my_deck = Deck::new(1234, "Example deck", "This is an example deck");
+    /// my_deck.add_note(Note::new(basic_model(), vec!["What is the capital of France?", "Paris"])?);
+    ///
+    /// Package::new(vec![my_deck], vec![])?.write_to_file("output.apkg")?;
     /// ```
     pub fn write_to_file(self, file: &str) -> Result<(), anyhow::Error> {
         Package::new(vec![self], vec![])?.write_to_file(file)?;

@@ -12,7 +12,7 @@ With `genanki-rs` you can easily generate decks for the popular open source flas
 Add 
 ```toml
 [dependencies]
-genanki-rs = "0.0.2"
+genanki-rs = "0.1.0"
 ```
 to your `Cargo.toml` or find another version on [*crates.io*](https://crates.io/crates/genanki-rs)
 
