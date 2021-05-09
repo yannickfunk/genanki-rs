@@ -1,9 +1,9 @@
 [package]
 name = "genanki-rs"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Yannick Funk <yannickfunk@yahoo.de>"]
 edition = "2018"
-description = "Rust Port of genanki"
+description = "Crate to create decks for the open source flashcard platform Anki. Based on Python library genanki"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
