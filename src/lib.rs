@@ -10,6 +10,7 @@ mod note;
 mod package;
 mod util;
 
+pub use anyhow::Error;
 pub use builders::{Field, Template};
 pub use builtin_models::*;
 pub use deck::Deck;
