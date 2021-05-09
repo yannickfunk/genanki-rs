@@ -30,7 +30,7 @@ impl Deck {
         self.notes.push(note);
     }
 
-    pub fn add_model(&mut self, model: Model) {
+    fn add_model(&mut self, model: Model) {
         self.models.insert(model.id, model);
     }
 
