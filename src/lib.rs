@@ -162,7 +162,7 @@
 //!
 //! You can also call `Model::new_with_options()`, passing the `sort_field_index` to change the sort field. `0` means the first field in the Note, `1` means the second, etc.
 //!
-
+#![deny(warnings)]
 mod apkg_col;
 mod apkg_schema;
 mod builders;
