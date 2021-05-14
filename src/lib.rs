@@ -187,7 +187,6 @@ pub use package::Package;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use db_entries::Req;
     use pyo3::types::PyDict;
     use pyo3::{
         types::{PyModule, PyString},
@@ -508,14 +507,7 @@ def check_media(col):
     #[test]
     fn model_req() {
         let req = model().req().unwrap();
-        assert_eq!(
-            req,
-            vec![vec![
-                Req::Integer(0),
-                Req::String("all".to_string()),
-                Req::IntegerArray(vec![0])
-            ]]
-        );
+        assert_eq!(req, vec![(0, "all".to_string(), vec![0])]);
     }
 
     #[test]
@@ -524,16 +516,8 @@ def check_media(col):
         assert_eq!(
             req,
             vec![
-                vec![
-                    Req::Integer(0),
-                    Req::String("all".to_string()),
-                    Req::IntegerArray(vec![0])
-                ],
-                vec![
-                    Req::Integer(1),
-                    Req::String("all".to_string()),
-                    Req::IntegerArray(vec![1])
-                ]
+                (0, "all".to_string(), vec![0]),
+                (1, "all".to_string(), vec![1])
             ]
         );
     }
@@ -541,14 +525,7 @@ def check_media(col):
     #[test]
     fn model_req_with_hint() {
         let req = model_with_hint().req().unwrap();
-        assert_eq!(
-            req,
-            vec![vec![
-                Req::Integer(0),
-                Req::String("any".to_string()),
-                Req::IntegerArray(vec![0, 1])
-            ]]
-        );
+        assert_eq!(req, vec![(0, "any".to_string(), vec![0, 1])]);
     }
 
     #[test]

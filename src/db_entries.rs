@@ -40,7 +40,7 @@ pub struct ModelDbEntry {
     pub tags: Vec<Option<serde_json::Value>>,
     pub did: usize,
     pub usn: i64,
-    pub req: Vec<Vec<Req>>,
+    pub req: Vec<(usize, String, Vec<usize>)>,
     pub flds: Vec<Fld>,
     pub sortf: i64,
     pub tmpls: Vec<Tmpl>,
@@ -76,12 +76,4 @@ pub struct Tmpl {
     pub afmt: String,
     pub ord: i64,
     pub bqfmt: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-#[serde(untagged)]
-pub enum Req {
-    Integer(usize),
-    IntegerArray(Vec<usize>),
-    String(String),
 }
