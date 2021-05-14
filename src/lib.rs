@@ -4,7 +4,7 @@
 //!
 //! To use genanki-rs, add the following to your `Cargo.toml`
 //! ```toml
-//! genanki-rs = "0.1.0"
+//! genanki-rs = "0.1.1"
 //! ```
 //! ## Minimal Example
 //! The following example creates a simple deck, containing 2 question-answer flashcards:

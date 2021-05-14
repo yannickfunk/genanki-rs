@@ -8,11 +8,11 @@ With `genanki-rs` you can easily generate decks for the popular open source flas
 
 ![example workflow](https://github.com/yannickfunk/genanki-rs/actions/workflows/rust.yml/badge.svg)
 
-## How to use (Use the [`documentation`](https://docs.rs/genanki-rs/0.1.0/genanki_rs/index.html) for further information)
+## How to use (Use the [`documentation`](https://docs.rs/genanki-rs/0.1.1/genanki_rs/index.html) for further information)
 Add 
 ```toml
 [dependencies]
-genanki-rs = "0.1.0"
+genanki-rs = "0.1.1"
 ```
 to your `Cargo.toml` or find another version on [*crates.io*](https://crates.io/crates/genanki-rs)
 
