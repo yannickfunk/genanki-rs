@@ -104,33 +104,29 @@ impl Model {
     pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, anyhow::Error> {
         let sentinel = "SeNtInEl".to_string();
         let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
-
+        let field_values = field_names
+            .iter()
+            .map(|field| (field.as_str(), format!("{}{}", &field, &sentinel)));
         let mut req = Vec::new();
         for (template_ord, template) in self.templates.iter().enumerate() {
-            let field_values: HashMap<&str, String> = field_names
-                .iter()
-                .map(|field| (field.as_str(), format!("{}{}", &field, &sentinel)))
-                .collect();
-            let rendered = RamTemplate::new(template.qfmt.clone())?.render(&field_values);
-            let mut required_fields = Vec::new();
-            required_fields.extend(
-                field_names
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, field)| !contains_other_fields(&rendered, field, &sentinel))
-                    .map(|(field_ord, _)| field_ord),
-            );
+            let rendered = RamTemplate::new(template.qfmt.clone())?
+                .render::<HashMap<&str, String>>(&field_values.clone().collect());
+            let required_fields = field_values
+                .clone()
+                .enumerate()
+                .filter(|(_, (_, field))| !contains_other_fields(&rendered, field, &sentinel))
+                .map(|(field_ord, _)| field_ord)
+                .collect::<Vec<_>>();
             if !required_fields.is_empty() {
                 req.push((template_ord, "all".to_string(), required_fields));
                 continue;
             }
-            required_fields.extend(
-                field_names
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, field)| rendered.contains(&format!("{}{}", &field, &sentinel)))
-                    .map(|(field_ord, _)| field_ord),
-            );
+            let required_fields = field_values
+                .clone()
+                .enumerate()
+                .filter(|(_, (_, sentinel))| rendered.contains(sentinel))
+                .map(|(field_ord, _)| field_ord)
+                .collect::<Vec<_>>();
             if required_fields.is_empty() {
                 return Err(anyhow!(format!("Could not compute required fields for this template; please check the formatting of \"qfmt\": {:?}", template)));
             }
@@ -199,7 +195,7 @@ impl Model {
 
 fn contains_other_fields(rendered: &str, current_field: &str, sentinel: &str) -> bool {
     Regex::new(&format!(
-        "(?!{field}{sentinel}\\b)\\b(\\w)*{sentinel}+",
+        "(?!{field}\\b)\\b(\\w)*{sentinel}+",
         field = current_field,
         sentinel = sentinel
     ))
