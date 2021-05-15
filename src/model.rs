@@ -1,7 +1,8 @@
 use crate::builders::Template;
-use crate::db_entries::{Fld, ModelDbEntry, Req, Tmpl};
+use crate::db_entries::{Fld, ModelDbEntry, Tmpl};
 use crate::Field;
 use anyhow::anyhow;
+use fancy_regex::Regex;
 use ramhorns::Template as RamTemplate;
 use std::collections::HashMap;
 
@@ -100,55 +101,36 @@ impl Model {
         }
     }
 
-    pub(super) fn req(&self) -> Result<Vec<Vec<Req>>, anyhow::Error> {
+    pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, anyhow::Error> {
         let sentinel = "SeNtInEl".to_string();
         let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
-
+        let field_values = field_names
+            .iter()
+            .map(|field| (field.as_str(), format!("{}{}", &field, &sentinel)));
         let mut req = Vec::new();
         for (template_ord, template) in self.templates.iter().enumerate() {
-            let tmpl = RamTemplate::new(template.qfmt.clone())?;
-            let mut field_values: HashMap<String, String> = field_names
-                .iter()
-                .map(|field| (field.clone(), sentinel.clone()))
-                .collect();
-            let mut required_fields = Vec::new();
-            for (field_ord, field) in field_names.iter().enumerate() {
-                let mut fvcopy = field_values.clone();
-                fvcopy.insert(field.clone(), "".to_string());
-                let rendered = tmpl.render(&fvcopy);
-                if !rendered.contains(&sentinel) {
-                    required_fields.push(field_ord);
-                }
-            }
+            let rendered = RamTemplate::new(template.qfmt.clone())?
+                .render::<HashMap<&str, String>>(&field_values.clone().collect());
+            let required_fields = field_values
+                .clone()
+                .enumerate()
+                .filter(|(_, (_, field))| !contains_other_fields(&rendered, field, &sentinel))
+                .map(|(field_ord, _)| field_ord)
+                .collect::<Vec<_>>();
             if !required_fields.is_empty() {
-                req.push(vec![
-                    Req::Integer(template_ord),
-                    Req::String("all".to_string()),
-                    Req::IntegerArray(required_fields),
-                ]);
+                req.push((template_ord, "all".to_string(), required_fields));
                 continue;
             }
-            field_values = field_names
-                .iter()
-                .map(|field| (field.clone(), "".to_string()))
-                .collect();
-            for (field_ord, field) in field_names.iter().enumerate() {
-                let mut fvcopy = field_values.clone();
-                fvcopy.insert(field.clone(), sentinel.clone());
-                let rendered = tmpl.render(&fvcopy);
-                if rendered.contains(&sentinel) {
-                    required_fields.push(field_ord);
-                }
-            }
-            if required_fields.len() == 0 {
+            let required_fields = field_values
+                .clone()
+                .enumerate()
+                .filter(|(_, (_, sentinel))| rendered.contains(sentinel))
+                .map(|(field_ord, _)| field_ord)
+                .collect::<Vec<_>>();
+            if required_fields.is_empty() {
                 return Err(anyhow!(format!("Could not compute required fields for this template; please check the formatting of \"qfmt\": {:?}", template)));
             }
-
-            req.push(vec![
-                Req::Integer(template_ord),
-                Req::String("any".to_string()),
-                Req::IntegerArray(required_fields),
-            ])
+            req.push((template_ord, "any".to_string(), required_fields))
         }
         Ok(req)
     }
@@ -209,6 +191,17 @@ impl Model {
             &self.to_model_db_entry(timestamp, deck_id)?,
         )?)
     }
+}
+
+fn contains_other_fields(rendered: &str, current_field: &str, sentinel: &str) -> bool {
+    Regex::new(&format!(
+        "(?!{field}\\b)\\b(\\w)*{sentinel}+",
+        field = current_field,
+        sentinel = sentinel
+    ))
+    .unwrap()
+    .is_match(rendered)
+    .unwrap()
 }
 
 #[cfg(test)]

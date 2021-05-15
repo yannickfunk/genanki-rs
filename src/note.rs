@@ -1,5 +1,4 @@
 use crate::card::Card;
-use crate::db_entries::Req;
 use crate::model::{Model, ModelType};
 use crate::util::guid_for;
 use anyhow::anyhow;
@@ -194,45 +193,16 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
 
 fn front_back_cards(model: &Model, self_fields: &Vec<String>) -> Result<Vec<Card>, anyhow::Error> {
     let mut rv = vec![];
-    for req_vec in model.req()?.iter() {
-        let card_ord = if let Req::Integer(card_ord) = req_vec[0].clone() {
-            card_ord
-        } else {
-            panic!("checked before")
-        };
-        let any_or_all = if let Req::String(any_or_all) = req_vec[1].clone() {
-            any_or_all
-        } else {
-            panic!("checked before")
-        };
-        let required_field_ords = if let Req::IntegerArray(required_field_ords) = req_vec[2].clone()
-        {
-            required_field_ords
-        } else {
-            panic!("checked before")
-        };
-
-        match any_or_all.as_str() {
-            "any" => {
-                if required_field_ords
-                    .iter()
-                    .map(|&ord| &self_fields[ord])
-                    .any(|field| field.len() > 0)
-                {
-                    rv.push(Card::new(card_ord as i64, false));
-                }
-            }
-            "all" => {
-                if required_field_ords
-                    .iter()
-                    .map(|&ord| &self_fields[ord])
-                    .all(|field| field.len() > 0)
-                {
-                    rv.push(Card::new(card_ord as i64, false));
-                }
-            }
+    for (card_ord, any_or_all, required_field_ords) in model.req()?.drain(..) {
+        let mut iter = required_field_ords.iter().map(|&ord| &self_fields[ord]);
+        let condition = match any_or_all.as_str() {
+            "any" => iter.any(|field| field.len() > 0),
+            "all" => iter.all(|field| field.len() > 0),
             _ => panic!("only any or all"),
         };
+        if condition {
+            rv.push(Card::new(card_ord as i64, false));
+        }
     }
     Ok(rv)
 }
