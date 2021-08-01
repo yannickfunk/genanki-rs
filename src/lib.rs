@@ -303,13 +303,13 @@ mod tests {
 
     pub fn anki_collection<'a>(py: &'a Python, col_fname: &str) -> &'a PyAny {
         let code = r#"
-import anki
+import anki.collection
 import tempfile
 
 def setup(fname):
     import uuid
     colf_name = f"{fname}.anki2"
-    return anki.Collection(colf_name)
+    return anki.collection.Collection(colf_name)
 "#;
         let setup = PyModule::from_code(*py, code, "test_setup", "test_setup.py")
             .unwrap()
