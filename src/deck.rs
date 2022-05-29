@@ -130,8 +130,8 @@ impl Deck {
     ///
     /// Package::new(vec![my_deck], vec![])?.write_to_file("output.apkg")?;
     /// ```
-    pub fn write_to_file(self, file: &str) -> Result<(), anyhow::Error> {
-        Package::new(vec![self], vec![])?.write_to_file(file)?;
+    pub fn write_to_file(&self, file: &str) -> Result<(), anyhow::Error> {
+        Package::new(vec![self.clone()], vec![])?.write_to_file(file)?;
         Ok(())
     }
 }
