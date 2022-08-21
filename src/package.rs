@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use crate::apkg_col::APKG_COL;
 use crate::apkg_schema::APKG_SCHEMA;
 use crate::deck::Deck;
+use crate::Error;
 use std::str::FromStr;
 
 /// `Package` to pack `Deck`s and `media_files` and write them to a `.apkg` file
@@ -48,7 +49,7 @@ impl Package {
     /// Create a new package with `decks` and `media_files`
     ///
     /// Returns `Err` if `media_files` are invalid
-    pub fn new(decks: Vec<Deck>, media_files: Vec<&str>) -> Result<Self, anyhow::Error> {
+    pub fn new(decks: Vec<Deck>, media_files: Vec<&str>) -> Result<Self, Error> {
         let media_files = media_files
             .iter()
             .map(|&s| PathBuf::from_str(s))
@@ -59,18 +60,14 @@ impl Package {
     /// Writes the package to a file
     ///
     /// Returns `Err` if the `file` cannot be created
-    pub fn write_to_file(&mut self, file: &str) -> Result<(), anyhow::Error> {
+    pub fn write_to_file(&mut self, file: &str) -> Result<(), Error> {
         self.write_to_file_maybe_timestamp(file, None)
     }
 
     /// Writes the package to a file using a timestamp
     ///
     /// Returns `Err` if the `file` cannot be created
-    pub fn write_to_file_timestamp(
-        &mut self,
-        file: &str,
-        timestamp: f64,
-    ) -> Result<(), anyhow::Error> {
+    pub fn write_to_file_timestamp(&mut self, file: &str, timestamp: f64) -> Result<(), Error> {
         self.write_to_file_maybe_timestamp(file, Some(timestamp))
     }
 
@@ -78,7 +75,7 @@ impl Package {
         &mut self,
         file: &str,
         timestamp: Option<f64>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         let file = File::create(&file)?;
         let db_file = NamedTempFile::new()?.into_temp_path();
 
@@ -129,11 +126,7 @@ impl Package {
         Ok(())
     }
 
-    fn write_to_db(
-        &mut self,
-        transaction: &Transaction,
-        timestamp: f64,
-    ) -> Result<(), anyhow::Error> {
+    fn write_to_db(&mut self, transaction: &Transaction, timestamp: f64) -> Result<(), Error> {
         let mut id_gen = ((timestamp * 1000.0) as usize)..;
         transaction.execute_batch(APKG_SCHEMA)?;
         transaction.execute_batch(APKG_COL)?;
@@ -144,7 +137,7 @@ impl Package {
     }
 }
 
-fn read_file_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, anyhow::Error> {
+fn read_file_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Error> {
     let mut handle = File::open(path)?;
     let mut data = Vec::new();
     handle.read_to_end(&mut data)?;

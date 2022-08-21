@@ -2,6 +2,7 @@ use super::Package;
 use crate::db_entries::{DeckDbEntry, ModelDbEntry};
 use crate::model::Model;
 use crate::note::Note;
+use crate::Error;
 use rusqlite::{params, Transaction};
 use std::collections::HashMap;
 use std::ops::RangeFrom;
@@ -78,7 +79,7 @@ impl Deck {
         transaction: &Transaction,
         timestamp: f64,
         id_gen: &mut RangeFrom<usize>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         let decks_json_str: String =
             transaction.query_row("SELECT decks FROM col", [], |row| row.get(0))?;
         let mut decks: HashMap<usize, DeckDbEntry> = serde_json::from_str(&decks_json_str)?;
@@ -130,7 +131,7 @@ impl Deck {
     ///
     /// Package::new(vec![my_deck], vec![])?.write_to_file("output.apkg")?;
     /// ```
-    pub fn write_to_file(&self, file: &str) -> Result<(), anyhow::Error> {
+    pub fn write_to_file(&self, file: &str) -> Result<(), Error> {
         Package::new(vec![self.clone()], vec![])?.write_to_file(file)?;
         Ok(())
     }

@@ -1,7 +1,7 @@
 use crate::card::Card;
 use crate::model::{Model, ModelType};
 use crate::util::guid_for;
-use anyhow::anyhow;
+use crate::Error;
 use fancy_regex::Regex;
 use rusqlite::{params, Transaction};
 use std::collections::HashSet;
@@ -30,7 +30,7 @@ impl Note {
     ///
     /// let note = Note::new(basic_model(), vec!["What is the capital of France?", "Paris"]);
     /// ```
-    pub fn new(model: Model, fields: Vec<&str>) -> Result<Self, anyhow::Error> {
+    pub fn new(model: Model, fields: Vec<&str>) -> Result<Self, Error> {
         let fields = fields.iter().map(|&s| s.to_string()).collect();
         let cards = match model.model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
@@ -59,7 +59,7 @@ impl Note {
         sort_field: Option<bool>,
         tags: Option<Vec<&str>>,
         guid: Option<&str>,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<Self, Error> {
         let tags = tags
             .unwrap_or_default()
             .iter()
@@ -94,15 +94,18 @@ impl Note {
         self.guid.clone()
     }
 
-    fn check_number_model_fields_matches_num_fields(&self) -> Result<(), anyhow::Error> {
+    fn check_number_model_fields_matches_num_fields(&self) -> Result<(), Error> {
         if self.model.fields().len() != self.fields.len() {
-            Err(anyhow!("number model field does not match num fields"))
+            Err(Error::ModelFieldCountMismatch(
+                self.model.fields().len(),
+                self.fields.len(),
+            ))
         } else {
             Ok(())
         }
     }
 
-    fn check_invalid_html_tags_in_fields(&self) -> Result<(), anyhow::Error> {
+    fn check_invalid_html_tags_in_fields(&self) -> Result<(), Error> {
         for field in &self.fields {
             let invalid_tags = find_invalid_html_tags_in_field(field);
             if !invalid_tags.is_empty() {
@@ -128,7 +131,7 @@ impl Note {
         timestamp: f64,
         deck_id: usize,
         mut id_gen: &mut RangeFrom<usize>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         self.check_number_model_fields_matches_num_fields()?;
         self.check_invalid_html_tags_in_fields()?;
         transaction.execute(
@@ -191,7 +194,7 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
         .collect()
 }
 
-fn front_back_cards(model: &Model, self_fields: &Vec<String>) -> Result<Vec<Card>, anyhow::Error> {
+fn front_back_cards(model: &Model, self_fields: &Vec<String>) -> Result<Vec<Card>, Error> {
     let mut rv = vec![];
     for (card_ord, any_or_all, required_field_ords) in model.req()?.drain(..) {
         let mut iter = required_field_ords.iter().map(|&ord| &self_fields[ord]);
@@ -223,11 +226,9 @@ fn re_findall(regex_str: &'static str, to_match: &str) -> Vec<String> {
         .collect()
 }
 
-fn validate_tags(tags: &Vec<String>) -> Result<(), anyhow::Error> {
+fn validate_tags(tags: &Vec<String>) -> Result<(), Error> {
     if tags.iter().any(|tag| tag.contains(' ')) {
-        Err(anyhow!(
-            "One of the tags contains a whitespace, this is not allowed!"
-        ))
+        Err(Error::TagContainsWhitespace)
     } else {
         Ok(())
     }

@@ -1,6 +1,8 @@
 use rusqlite::{params, Transaction};
 use std::ops::RangeFrom;
 
+use crate::Error;
+
 #[derive(Clone)]
 pub struct Card {
     pub ord: i64,
@@ -22,7 +24,7 @@ impl Card {
         deck_id: usize,
         note_id: usize,
         id_gen: &mut RangeFrom<usize>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         let queue = if self.suspend { -1 } else { 0 };
         transaction.execute(
             "INSERT INTO cards VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);",

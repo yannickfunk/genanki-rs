@@ -175,14 +175,45 @@ mod note;
 mod package;
 mod util;
 
-/// Currently re-exports [`anyhow::Error`](https://docs.rs/anyhow/1.0.40/anyhow/struct.Error.html), this might change in the future.
-pub use anyhow::Error;
+use std::{convert::Infallible, time::SystemTimeError};
+
 pub use builders::{Field, Template};
 pub use builtin_models::*;
 pub use deck::Deck;
 pub use model::{Model, ModelType};
 pub use note::Note;
 pub use package::Package;
+use zip::result::ZipError;
+
+#[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
+pub enum Error {
+    #[error(transparent)]
+    Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    JsonParser(#[from] serde_json::Error),
+    #[error("Could not compute required fields for this template; please check the formatting of \"qfmt\": {0:?}")]
+    TemplateFormat(db_entries::Tmpl),
+    #[error("number of model field ({0}) does not match number of fields ({1})")]
+    ModelFieldCountMismatch(usize, usize),
+    #[error("One of the tags contains whitespace, this is not allowed!")]
+    TagContainsWhitespace,
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Template(#[from] ramhorns::Error),
+    #[error(transparent)]
+    SystemTime(#[from] SystemTimeError),
+    #[error(transparent)]
+    Zip(#[from] ZipError),
+}
+
+impl From<Infallible> for Error {
+    fn from(_: Infallible) -> Self {
+        // Infallible is uninhabited, so there's no way we can get to this code.
+        unreachable!()
+    }
+}
 
 #[cfg(test)]
 mod tests {
