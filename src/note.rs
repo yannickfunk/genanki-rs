@@ -1,4 +1,5 @@
 use crate::card::Card;
+use crate::error::database_error;
 use crate::model::{Model, ModelType};
 use crate::util::guid_for;
 use crate::Error;
@@ -134,22 +135,24 @@ impl Note {
     ) -> Result<(), Error> {
         self.check_number_model_fields_matches_num_fields()?;
         self.check_invalid_html_tags_in_fields()?;
-        transaction.execute(
-            "INSERT INTO notes VALUES(?,?,?,?,?,?,?,?,?,?,?);",
-            params![
-                id_gen.next(),        // id
-                self.guid(),          // guid
-                self.model.id,        // mid
-                timestamp as i64,     // mod
-                -1,                   // usn
-                self.format_tags(),   // TODO tags
-                self.format_fields(), // flds
-                self.sort_field,      // sfld
-                0,                    // csum, can be ignored
-                0,                    // flags
-                "",                   // data
-            ],
-        )?;
+        transaction
+            .execute(
+                "INSERT INTO notes VALUES(?,?,?,?,?,?,?,?,?,?,?);",
+                params![
+                    id_gen.next(),        // id
+                    self.guid(),          // guid
+                    self.model.id,        // mid
+                    timestamp as i64,     // mod
+                    -1,                   // usn
+                    self.format_tags(),   // TODO tags
+                    self.format_fields(), // flds
+                    self.sort_field,      // sfld
+                    0,                    // csum, can be ignored
+                    0,                    // flags
+                    "",                   // data
+                ],
+            )
+            .map_err(database_error)?;
         let note_id = transaction.last_insert_rowid() as usize;
         for card in &self.cards {
             card.write_to_db(transaction, timestamp, deck_id, note_id, &mut id_gen)?

@@ -1,5 +1,6 @@
 use super::Package;
 use crate::db_entries::{DeckDbEntry, ModelDbEntry};
+use crate::error::{database_error, json_error};
 use crate::model::Model;
 use crate::note::Note;
 use crate::Error;
@@ -80,28 +81,36 @@ impl Deck {
         timestamp: f64,
         id_gen: &mut RangeFrom<usize>,
     ) -> Result<(), Error> {
-        let decks_json_str: String =
-            transaction.query_row("SELECT decks FROM col", [], |row| row.get(0))?;
-        let mut decks: HashMap<usize, DeckDbEntry> = serde_json::from_str(&decks_json_str)?;
+        let decks_json_str: String = transaction
+            .query_row("SELECT decks FROM col", [], |row| row.get(0))
+            .map_err(database_error)?;
+        let mut decks: HashMap<usize, DeckDbEntry> =
+            serde_json::from_str(&decks_json_str).map_err(json_error)?;
         decks.insert(self.id, self.to_deck_db_entry());
-        transaction.execute(
-            "UPDATE col SET decks = ?",
-            params![serde_json::to_string(&decks)?],
-        )?;
+        transaction
+            .execute(
+                "UPDATE col SET decks = ?",
+                params![serde_json::to_string(&decks).map_err(json_error)?],
+            )
+            .map_err(database_error)?;
 
-        let models_json_str: String =
-            transaction.query_row("SELECT models FROM col", [], |row| row.get(0))?;
-        let mut models: HashMap<usize, ModelDbEntry> = serde_json::from_str(&models_json_str)?;
+        let models_json_str: String = transaction
+            .query_row("SELECT models FROM col", [], |row| row.get(0))
+            .map_err(database_error)?;
+        let mut models: HashMap<usize, ModelDbEntry> =
+            serde_json::from_str(&models_json_str).map_err(json_error)?;
         for note in self.notes.clone().iter() {
             self.add_model(note.model());
         }
         for (i, model) in &mut self.models {
             models.insert(*i, model.to_model_db_entry(timestamp, self.id)?);
         }
-        transaction.execute(
-            "UPDATE col SET models = ?",
-            [serde_json::to_string(&models)?],
-        )?;
+        transaction
+            .execute(
+                "UPDATE col SET models = ?",
+                [serde_json::to_string(&models).map_err(json_error)?],
+            )
+            .map_err(database_error)?;
         for note in &mut self.notes {
             note.write_to_db(&transaction, timestamp, self.id, id_gen)?;
         }

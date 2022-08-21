@@ -1,5 +1,6 @@
 use crate::builders::Template;
 use crate::db_entries::{Fld, ModelDbEntry, Tmpl};
+use crate::error::{json_error, template_error};
 use crate::{Error, Field};
 use fancy_regex::Regex;
 use ramhorns::Template as RamTemplate;
@@ -108,7 +109,8 @@ impl Model {
             .map(|field| (field.as_str(), format!("{}{}", &field, &sentinel)));
         let mut req = Vec::new();
         for (template_ord, template) in self.templates.iter().enumerate() {
-            let rendered = RamTemplate::new(template.qfmt.clone())?
+            let rendered = RamTemplate::new(template.qfmt.clone())
+                .map_err(template_error)?
                 .render::<HashMap<&str, String>>(&field_values.clone().collect());
             let required_fields = field_values
                 .clone()
@@ -182,9 +184,10 @@ impl Model {
 
     #[allow(dead_code)]
     pub(super) fn to_json(&mut self, timestamp: f64, deck_id: usize) -> Result<String, Error> {
-        Ok(serde_json::to_string(
-            &self.to_model_db_entry(timestamp, deck_id)?,
-        )?)
+        Ok(
+            serde_json::to_string(&self.to_model_db_entry(timestamp, deck_id)?)
+                .map_err(json_error)?,
+        )
     }
 }
 
