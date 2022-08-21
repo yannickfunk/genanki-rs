@@ -4,6 +4,10 @@ use zip::result::ZipError;
 
 use crate::db_entries::Tmpl;
 
+// Make sure `Error` is `Send`
+const fn _assert_send<T: Send>() {}
+const _: () = _assert_send::<Error>();
+
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -14,7 +18,7 @@ pub enum Error {
     /// the underlying library in the future if needed without breaking
     /// client code.
     #[error(transparent)]
-    Database(Box<dyn std::error::Error>),
+    Database(Box<dyn std::error::Error + Send>),
     /// Indicates an error happened with the JSON parser
     ///
     /// Currently the argument is a `serde_json::Error`, but it is
@@ -22,7 +26,7 @@ pub enum Error {
     /// the underlying library in the future if needed without breaking
     /// client code.
     #[error(transparent)]
-    JsonParser(Box<dyn std::error::Error>),
+    JsonParser(Box<dyn std::error::Error + Send>),
     #[error("Could not compute required fields for this template; please check the formatting of \"qfmt\": {0:?}")]
     TemplateFormat(Tmpl),
     #[error("number of model field ({0}) does not match number of fields ({1})")]
@@ -38,7 +42,7 @@ pub enum Error {
     /// the underlying library in the future if needed without breaking
     /// client code.
     #[error(transparent)]
-    Template(#[from] Box<dyn std::error::Error>),
+    Template(#[from] Box<dyn std::error::Error + Send>),
     #[error(transparent)]
     SystemTime(#[from] SystemTimeError),
     /// Indicates an error with zip file handling
@@ -48,7 +52,7 @@ pub enum Error {
     /// the underlying library in the future if needed without breaking
     /// client code.
     #[error(transparent)]
-    Zip(Box<dyn std::error::Error>),
+    Zip(Box<dyn std::error::Error + Send>),
 }
 
 impl From<Infallible> for Error {
