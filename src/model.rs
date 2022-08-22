@@ -101,6 +101,10 @@ impl Model {
         }
     }
 
+    pub fn build() -> ModelBuilder {
+        ModelBuilder::new()
+    }
+
     pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, Error> {
         let sentinel = "SeNtInEl".to_string();
         let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
@@ -187,6 +191,48 @@ impl Model {
         Ok(
             serde_json::to_string(&self.to_model_db_entry(timestamp, deck_id)?)
                 .map_err(json_error)?,
+        )
+    }
+}
+
+pub struct ModelBuilder {
+    id: Option<usize>,
+    name: Option<String>,
+    fields: Vec<Field>,
+    templates: Vec<Template>,
+    css: Option<String>,
+    model_type: Option<ModelType>,
+    latex_pre: Option<String>,
+    latex_post: Option<String>,
+    sort_field_index: Option<i64>,
+}
+
+impl ModelBuilder {
+    fn new() -> Self {
+        Self {
+            id: None,
+            name: None,
+            fields: vec![],
+            templates: vec![],
+            css: None,
+            model_type: None,
+            latex_pre: None,
+            latex_post: None,
+            sort_field_index: None,
+        }
+    }
+
+    pub fn build(self) -> Model {
+        Model::new_with_options(
+            self.id.expect("id field must be specified"),
+            &self.name.expect("name field must be specified"),
+            self.fields,
+            self.templates,
+            self.css.as_deref(),
+            self.model_type,
+            self.latex_pre.as_deref(),
+            self.latex_post.as_deref(),
+            self.sort_field_index,
         )
     }
 }
