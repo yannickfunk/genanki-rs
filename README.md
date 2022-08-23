@@ -15,7 +15,7 @@ Contributions in any form are welcome! Feel free to just create an Issue or a PR
 Add 
 ```toml
 [dependencies]
-genanki-rs = "0.1.3"
+genanki-rs = "0.2"
 ```
 to your `Cargo.toml` or find another version on [*crates.io*](https://crates.io/crates/genanki-rs)
 

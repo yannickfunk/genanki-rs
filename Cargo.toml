@@ -1,6 +1,6 @@
 [package]
 name = "genanki-rs"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Yannick Funk <yannickfunk@yahoo.de>"]
 edition = "2018"
 description = "Crate to create decks for the open source flashcard platform Anki. Based on Python library genanki"
