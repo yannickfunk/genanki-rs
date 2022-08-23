@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 use crate::apkg_col::APKG_COL;
 use crate::apkg_schema::APKG_SCHEMA;
 use crate::deck::Deck;
+use crate::error::{database_error, json_error, zip_error};
+use crate::Error;
 use std::str::FromStr;
 
 /// `Package` to pack `Deck`s and `media_files` and write them to a `.apkg` file
@@ -48,7 +50,7 @@ impl Package {
     /// Create a new package with `decks` and `media_files`
     ///
     /// Returns `Err` if `media_files` are invalid
-    pub fn new(decks: Vec<Deck>, media_files: Vec<&str>) -> Result<Self, anyhow::Error> {
+    pub fn new(decks: Vec<Deck>, media_files: Vec<&str>) -> Result<Self, Error> {
         let media_files = media_files
             .iter()
             .map(|&s| PathBuf::from_str(s))
@@ -59,18 +61,14 @@ impl Package {
     /// Writes the package to a file
     ///
     /// Returns `Err` if the `file` cannot be created
-    pub fn write_to_file(&mut self, file: &str) -> Result<(), anyhow::Error> {
+    pub fn write_to_file(&mut self, file: &str) -> Result<(), Error> {
         self.write_to_file_maybe_timestamp(file, None)
     }
 
     /// Writes the package to a file using a timestamp
     ///
     /// Returns `Err` if the `file` cannot be created
-    pub fn write_to_file_timestamp(
-        &mut self,
-        file: &str,
-        timestamp: f64,
-    ) -> Result<(), anyhow::Error> {
+    pub fn write_to_file_timestamp(&mut self, file: &str, timestamp: f64) -> Result<(), Error> {
         self.write_to_file_maybe_timestamp(file, Some(timestamp))
     }
 
@@ -78,12 +76,12 @@ impl Package {
         &mut self,
         file: &str,
         timestamp: Option<f64>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         let file = File::create(&file)?;
         let db_file = NamedTempFile::new()?.into_temp_path();
 
-        let mut conn = Connection::open(&db_file)?;
-        let transaction = conn.transaction()?;
+        let mut conn = Connection::open(&db_file).map_err(database_error)?;
+        let transaction = conn.transaction().map_err(database_error)?;
 
         let timestamp = if let Some(timestamp) = timestamp {
             timestamp
@@ -92,11 +90,13 @@ impl Package {
         };
 
         self.write_to_db(&transaction, timestamp)?;
-        transaction.commit()?;
+        transaction.commit().map_err(database_error)?;
         conn.close().expect("Should always close");
 
         let mut outzip = ZipWriter::new(file);
-        outzip.start_file("collection.anki2", FileOptions::default())?;
+        outzip
+            .start_file("collection.anki2", FileOptions::default())
+            .map_err(zip_error)?;
         outzip.write_all(&read_file_bytes(db_file)?)?;
 
         let media_file_idx_to_path = self
@@ -117,26 +117,30 @@ impl Package {
                 )
             })
             .collect::<HashMap<String, &str>>();
-        let media_json = serde_json::to_string(&media_map)?;
-        outzip.start_file("media", FileOptions::default())?;
+        let media_json = serde_json::to_string(&media_map).map_err(json_error)?;
+        outzip
+            .start_file("media", FileOptions::default())
+            .map_err(zip_error)?;
         outzip.write_all(media_json.as_bytes())?;
 
         for (idx, &path) in &media_file_idx_to_path {
-            outzip.start_file(idx.to_string(), FileOptions::default())?;
+            outzip
+                .start_file(idx.to_string(), FileOptions::default())
+                .map_err(zip_error)?;
             outzip.write_all(&read_file_bytes(path)?)?;
         }
-        outzip.finish()?;
+        outzip.finish().map_err(zip_error)?;
         Ok(())
     }
 
-    fn write_to_db(
-        &mut self,
-        transaction: &Transaction,
-        timestamp: f64,
-    ) -> Result<(), anyhow::Error> {
+    fn write_to_db(&mut self, transaction: &Transaction, timestamp: f64) -> Result<(), Error> {
         let mut id_gen = ((timestamp * 1000.0) as usize)..;
-        transaction.execute_batch(APKG_SCHEMA)?;
-        transaction.execute_batch(APKG_COL)?;
+        transaction
+            .execute_batch(APKG_SCHEMA)
+            .map_err(database_error)?;
+        transaction
+            .execute_batch(APKG_COL)
+            .map_err(database_error)?;
         for deck in &mut self.decks {
             deck.write_to_db(&transaction, timestamp, &mut id_gen)?;
         }
@@ -144,7 +148,7 @@ impl Package {
     }
 }
 
-fn read_file_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, anyhow::Error> {
+fn read_file_bytes<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Error> {
     let mut handle = File::open(path)?;
     let mut data = Vec::new();
     handle.read_to_end(&mut data)?;

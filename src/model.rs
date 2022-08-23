@@ -1,7 +1,7 @@
 use crate::builders::Template;
 use crate::db_entries::{Fld, ModelDbEntry, Tmpl};
-use crate::Field;
-use anyhow::anyhow;
+use crate::error::{json_error, template_error};
+use crate::{Error, Field};
 use fancy_regex::Regex;
 use ramhorns::Template as RamTemplate;
 use std::collections::HashMap;
@@ -101,7 +101,7 @@ impl Model {
         }
     }
 
-    pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, anyhow::Error> {
+    pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, Error> {
         let sentinel = "SeNtInEl".to_string();
         let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
         let field_values = field_names
@@ -109,7 +109,8 @@ impl Model {
             .map(|field| (field.as_str(), format!("{}{}", &field, &sentinel)));
         let mut req = Vec::new();
         for (template_ord, template) in self.templates.iter().enumerate() {
-            let rendered = RamTemplate::new(template.qfmt.clone())?
+            let rendered = RamTemplate::new(template.qfmt.clone())
+                .map_err(template_error)?
                 .render::<HashMap<&str, String>>(&field_values.clone().collect());
             let required_fields = field_values
                 .clone()
@@ -128,7 +129,7 @@ impl Model {
                 .map(|(field_ord, _)| field_ord)
                 .collect::<Vec<_>>();
             if required_fields.is_empty() {
-                return Err(anyhow!(format!("Could not compute required fields for this template; please check the formatting of \"qfmt\": {:?}", template)));
+                return Err(Error::TemplateFormat(template.clone()));
             }
             req.push((template_ord, "any".to_string(), required_fields))
         }
@@ -148,7 +149,7 @@ impl Model {
         &mut self,
         timestamp: f64,
         deck_id: usize,
-    ) -> Result<ModelDbEntry, anyhow::Error> {
+    ) -> Result<ModelDbEntry, Error> {
         self.templates
             .iter_mut()
             .enumerate()
@@ -182,14 +183,11 @@ impl Model {
     }
 
     #[allow(dead_code)]
-    pub(super) fn to_json(
-        &mut self,
-        timestamp: f64,
-        deck_id: usize,
-    ) -> Result<String, anyhow::Error> {
-        Ok(serde_json::to_string(
-            &self.to_model_db_entry(timestamp, deck_id)?,
-        )?)
+    pub(super) fn to_json(&mut self, timestamp: f64, deck_id: usize) -> Result<String, Error> {
+        Ok(
+            serde_json::to_string(&self.to_model_db_entry(timestamp, deck_id)?)
+                .map_err(json_error)?,
+        )
     }
 }
 

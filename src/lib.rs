@@ -170,16 +170,16 @@ mod builtin_models;
 mod card;
 mod db_entries;
 mod deck;
+mod error;
 mod model;
 mod note;
 mod package;
 mod util;
 
-/// Currently re-exports [`anyhow::Error`](https://docs.rs/anyhow/1.0.40/anyhow/struct.Error.html), this might change in the future.
-pub use anyhow::Error;
 pub use builders::{Field, Template};
 pub use builtin_models::*;
 pub use deck::Deck;
+pub use error::Error;
 pub use model::{Model, ModelType};
 pub use note::Note;
 pub use package::Package;

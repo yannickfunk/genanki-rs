@@ -1,6 +1,8 @@
 use rusqlite::{params, Transaction};
 use std::ops::RangeFrom;
 
+use crate::{error::database_error, Error};
+
 #[derive(Clone)]
 pub struct Card {
     pub ord: i64,
@@ -22,31 +24,33 @@ impl Card {
         deck_id: usize,
         note_id: usize,
         id_gen: &mut RangeFrom<usize>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         let queue = if self.suspend { -1 } else { 0 };
-        transaction.execute(
-            "INSERT INTO cards VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);",
-            params![
-                id_gen.next(),    // id
-                note_id,          // nid
-                deck_id,          // did
-                self.ord,         // ord
-                timestamp as i64, // mod
-                -1,               // usn
-                0,                // type (=0 for non-Cloze)
-                queue,            // queue
-                0,                // due
-                0,                // ivl
-                0,                // factor
-                0,                // reps
-                0,                // lapses
-                0,                // left
-                0,                // odue
-                0,                // odid
-                0,                // flags
-                "",               // data
-            ],
-        )?;
+        transaction
+            .execute(
+                "INSERT INTO cards VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);",
+                params![
+                    id_gen.next(),    // id
+                    note_id,          // nid
+                    deck_id,          // did
+                    self.ord,         // ord
+                    timestamp as i64, // mod
+                    -1,               // usn
+                    0,                // type (=0 for non-Cloze)
+                    queue,            // queue
+                    0,                // due
+                    0,                // ivl
+                    0,                // factor
+                    0,                // reps
+                    0,                // lapses
+                    0,                // left
+                    0,                // odue
+                    0,                // odid
+                    0,                // flags
+                    "",               // data
+                ],
+            )
+            .map_err(database_error)?;
         Ok(())
     }
 }
