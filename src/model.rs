@@ -101,7 +101,7 @@ impl Model {
         }
     }
 
-    pub fn build() -> ModelBuilder {
+    pub fn builder() -> ModelBuilder {
         ModelBuilder::new()
     }
 
@@ -195,6 +195,7 @@ impl Model {
     }
 }
 
+#[derive(Clone)]
 pub struct ModelBuilder {
     id: Option<usize>,
     name: Option<String>,
@@ -210,15 +211,88 @@ pub struct ModelBuilder {
 impl ModelBuilder {
     fn new() -> Self {
         Self {
-            id: None,
-            name: None,
-            fields: vec![],
-            templates: vec![],
-            css: None,
-            model_type: None,
-            latex_pre: None,
-            latex_post: None,
-            sort_field_index: None,
+            id: <_>::default(),
+            name: <_>::default(),
+            fields: <_>::default(),
+            templates: <_>::default(),
+            css: <_>::default(),
+            model_type: <_>::default(),
+            latex_pre: <_>::default(),
+            latex_post: <_>::default(),
+            sort_field_index: <_>::default(),
+        }
+    }
+
+    pub fn id(self, id: usize) -> Self {
+        Self {
+            id: Some(id),
+            ..self
+        }
+    }
+
+    pub fn name(self, name: impl ToString) -> Self {
+        Self {
+            name: Some(name.to_string()),
+            ..self
+        }
+    }
+
+    pub fn fields(self, fields: impl IntoIterator<Item = Field>) -> Self {
+        Self {
+            fields: fields.into_iter().collect(),
+            ..self
+        }
+    }
+
+    pub fn with_field(mut self, field: Field) -> Self {
+        self.fields.push(field);
+        self
+    }
+
+    pub fn templates(self, templates: impl IntoIterator<Item = Template>) -> Self {
+        Self {
+            templates: templates.into_iter().collect(),
+            ..self
+        }
+    }
+
+    pub fn with_template(mut self, template: Template) -> Self {
+        self.templates.push(template);
+        self
+    }
+
+    pub fn css(self, css: impl ToString) -> Self {
+        Self {
+            css: Some(css.to_string()),
+            ..self
+        }
+    }
+
+    pub fn model_type(self, model_type: ModelType) -> Self {
+        Self {
+            model_type: Some(model_type),
+            ..self
+        }
+    }
+
+    pub fn latex_pre(self, latex_pre: impl ToString) -> Self {
+        Self {
+            latex_pre: Some(latex_pre.to_string()),
+            ..self
+        }
+    }
+
+    pub fn latex_post(self, latex_post: impl ToString) -> Self {
+        Self {
+            latex_post: Some(latex_post.to_string()),
+            ..self
+        }
+    }
+
+    pub fn sort_field_index(self, index: i64) -> Self {
+        Self {
+            sort_field_index: Some(index),
+            ..self
         }
     }
 
@@ -429,5 +503,37 @@ mod tests {
             .collect::<Vec<i64>>();
         sorted.sort_unstable();
         assert_eq!(sorted, vec![0, 1]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn builder_id_required() {
+        Model::builder().name("foo").build();
+    }
+
+    #[test]
+    #[should_panic]
+    fn builder_name_required() {
+        Model::builder().id(1234).build();
+    }
+
+    #[test]
+    fn build_all_fields() {
+        // A simple test to make sure we can call all the setters on the builder.
+        //
+        // It doesn't actually verify any behavior, it's basically just a smoke test.
+        Model::builder()
+            .id(12345)
+            .name("test model")
+            .fields([Field::new("front")])
+            .templates([])
+            .with_field(Field::new("back"))
+            .with_template(Template::new("template"))
+            .css(css())
+            .latex_post("")
+            .latex_pre("")
+            .sort_field_index(1)
+            .model_type(ModelType::FrontBack)
+            .build();
     }
 }
