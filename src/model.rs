@@ -77,6 +77,7 @@ impl Model {
     /// * `latex_pre`: Custom latex declarations at the beginning of a card.
     /// * `latex_post`: Custom latex declarations at the end of a card.
     /// * `sort_field_index`: Custom sort field index
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_options(
         id: usize,
         name: &str,
@@ -223,6 +224,7 @@ impl ModelBuilder {
         }
     }
 
+    /// Sets the model ID
     pub fn id(self, id: usize) -> Self {
         Self {
             id: Some(id),
@@ -230,6 +232,7 @@ impl ModelBuilder {
         }
     }
 
+    /// Sets the model name
     pub fn name(self, name: impl ToString) -> Self {
         Self {
             name: Some(name.to_string()),
@@ -237,6 +240,9 @@ impl ModelBuilder {
         }
     }
 
+    /// Sets the model's fields to the `fields` argument
+    ///
+    /// If fields have already been set, this will overwrite them.
     pub fn fields(self, fields: impl IntoIterator<Item = Field>) -> Self {
         Self {
             fields: fields.into_iter().collect(),
@@ -244,11 +250,15 @@ impl ModelBuilder {
         }
     }
 
+    /// Adds an additional field to the model
     pub fn with_field(mut self, field: Field) -> Self {
         self.fields.push(field);
         self
     }
 
+    /// Sets the model's templates to the `templates` argument
+    ///
+    /// If the templates have already been set, this will overwrite them.
     pub fn templates(self, templates: impl IntoIterator<Item = Template>) -> Self {
         Self {
             templates: templates.into_iter().collect(),
@@ -256,11 +266,13 @@ impl ModelBuilder {
         }
     }
 
+    /// Adds an additional template to the model
     pub fn with_template(mut self, template: Template) -> Self {
         self.templates.push(template);
         self
     }
 
+    /// Sets the custom CSS for this model
     pub fn css(self, css: impl ToString) -> Self {
         Self {
             css: Some(css.to_string()),
@@ -268,6 +280,7 @@ impl ModelBuilder {
         }
     }
 
+    /// Change the type of the model
     pub fn model_type(self, model_type: ModelType) -> Self {
         Self {
             model_type: Some(model_type),
@@ -275,6 +288,7 @@ impl ModelBuilder {
         }
     }
 
+    /// Sets the model's latex_pre field
     pub fn latex_pre(self, latex_pre: impl ToString) -> Self {
         Self {
             latex_pre: Some(latex_pre.to_string()),
@@ -282,6 +296,7 @@ impl ModelBuilder {
         }
     }
 
+    /// Sets the model's latex_post field
     pub fn latex_post(self, latex_post: impl ToString) -> Self {
         Self {
             latex_post: Some(latex_post.to_string()),
@@ -289,6 +304,7 @@ impl ModelBuilder {
         }
     }
 
+    /// Sets the index of the field used for sorting with this model
     pub fn sort_field_index(self, index: i64) -> Self {
         Self {
             sort_field_index: Some(index),
@@ -296,6 +312,9 @@ impl ModelBuilder {
         }
     }
 
+    /// Creates a [`Model`] from this builder object using any configuration that has been provided
+    ///
+    /// Panics if the `id` or `name` field is not set.
     pub fn build(self) -> Model {
         Model::new_with_options(
             self.id.expect("id field must be specified"),
