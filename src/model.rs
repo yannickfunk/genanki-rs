@@ -102,8 +102,53 @@ impl Model {
         }
     }
 
-    pub fn builder() -> ModelBuilder {
-        ModelBuilder::new()
+    /// Adds an additional field to the model
+    pub fn with_field(mut self, field: Field) -> Self {
+        self.fields.push(field.into());
+        self
+    }
+
+    /// Adds an additional template to the model
+    pub fn with_template(mut self, template: Template) -> Self {
+        self.templates.push(template.into());
+        self
+    }
+
+    /// Sets the custom CSS for this model
+    pub fn css(self, css: impl ToString) -> Self {
+        Self {
+            css: css.to_string(),
+            ..self
+        }
+    }
+
+    /// Change the type of the model
+    pub fn model_type(self, model_type: ModelType) -> Self {
+        Self { model_type, ..self }
+    }
+
+    /// Sets the model's latex_pre field
+    pub fn latex_pre(self, latex_pre: impl ToString) -> Self {
+        Self {
+            latex_pre: latex_pre.to_string(),
+            ..self
+        }
+    }
+
+    /// Sets the model's latex_post field
+    pub fn latex_post(self, latex_post: impl ToString) -> Self {
+        Self {
+            latex_post: latex_post.to_string(),
+            ..self
+        }
+    }
+
+    /// Sets the index of the field used for sorting with this model
+    pub fn sort_field_index(self, sort_field_index: i64) -> Self {
+        Self {
+            sort_field_index,
+            ..self
+        }
     }
 
     pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, Error> {
@@ -147,7 +192,7 @@ impl Model {
     pub(super) fn templates(&self) -> Vec<Tmpl> {
         self.templates.clone()
     }
-    pub(super) fn model_type(&self) -> ModelType {
+    pub(super) fn get_model_type(&self) -> ModelType {
         self.model_type.clone()
     }
     pub(super) fn to_model_db_entry(
@@ -192,140 +237,6 @@ impl Model {
         Ok(
             serde_json::to_string(&self.to_model_db_entry(timestamp, deck_id)?)
                 .map_err(json_error)?,
-        )
-    }
-}
-
-#[derive(Clone)]
-pub struct ModelBuilder {
-    id: Option<usize>,
-    name: Option<String>,
-    fields: Vec<Field>,
-    templates: Vec<Template>,
-    css: Option<String>,
-    model_type: Option<ModelType>,
-    latex_pre: Option<String>,
-    latex_post: Option<String>,
-    sort_field_index: Option<i64>,
-}
-
-impl ModelBuilder {
-    fn new() -> Self {
-        Self {
-            id: <_>::default(),
-            name: <_>::default(),
-            fields: <_>::default(),
-            templates: <_>::default(),
-            css: <_>::default(),
-            model_type: <_>::default(),
-            latex_pre: <_>::default(),
-            latex_post: <_>::default(),
-            sort_field_index: <_>::default(),
-        }
-    }
-
-    /// Sets the model ID
-    pub fn id(self, id: usize) -> Self {
-        Self {
-            id: Some(id),
-            ..self
-        }
-    }
-
-    /// Sets the model name
-    pub fn name(self, name: impl ToString) -> Self {
-        Self {
-            name: Some(name.to_string()),
-            ..self
-        }
-    }
-
-    /// Sets the model's fields to the `fields` argument
-    ///
-    /// If fields have already been set, this will overwrite them.
-    pub fn fields(self, fields: impl IntoIterator<Item = Field>) -> Self {
-        Self {
-            fields: fields.into_iter().collect(),
-            ..self
-        }
-    }
-
-    /// Adds an additional field to the model
-    pub fn with_field(mut self, field: Field) -> Self {
-        self.fields.push(field);
-        self
-    }
-
-    /// Sets the model's templates to the `templates` argument
-    ///
-    /// If the templates have already been set, this will overwrite them.
-    pub fn templates(self, templates: impl IntoIterator<Item = Template>) -> Self {
-        Self {
-            templates: templates.into_iter().collect(),
-            ..self
-        }
-    }
-
-    /// Adds an additional template to the model
-    pub fn with_template(mut self, template: Template) -> Self {
-        self.templates.push(template);
-        self
-    }
-
-    /// Sets the custom CSS for this model
-    pub fn css(self, css: impl ToString) -> Self {
-        Self {
-            css: Some(css.to_string()),
-            ..self
-        }
-    }
-
-    /// Change the type of the model
-    pub fn model_type(self, model_type: ModelType) -> Self {
-        Self {
-            model_type: Some(model_type),
-            ..self
-        }
-    }
-
-    /// Sets the model's latex_pre field
-    pub fn latex_pre(self, latex_pre: impl ToString) -> Self {
-        Self {
-            latex_pre: Some(latex_pre.to_string()),
-            ..self
-        }
-    }
-
-    /// Sets the model's latex_post field
-    pub fn latex_post(self, latex_post: impl ToString) -> Self {
-        Self {
-            latex_post: Some(latex_post.to_string()),
-            ..self
-        }
-    }
-
-    /// Sets the index of the field used for sorting with this model
-    pub fn sort_field_index(self, index: i64) -> Self {
-        Self {
-            sort_field_index: Some(index),
-            ..self
-        }
-    }
-
-    /// Creates a [`Model`] from this builder object using any configuration that has been provided
-    ///
-    /// Panics if the `id` or `name` field is not set.
-    pub fn build(self) -> Model {
-        Model::new_with_options(
-            self.id.expect("id field must be specified"),
-            &self.name.expect("name field must be specified"),
-            self.fields,
-            self.templates,
-            self.css.as_deref(),
-            self.model_type,
-            self.latex_pre.as_deref(),
-            self.latex_post.as_deref(),
-            self.sort_field_index,
         )
     }
 }
@@ -525,34 +436,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn builder_id_required() {
-        Model::builder().name("foo").build();
-    }
-
-    #[test]
-    #[should_panic]
-    fn builder_name_required() {
-        Model::builder().id(1234).build();
-    }
-
-    #[test]
     fn build_all_fields() {
         // A simple test to make sure we can call all the setters on the builder.
         //
         // It doesn't actually verify any behavior, it's basically just a smoke test.
-        Model::builder()
-            .id(12345)
-            .name("test model")
-            .fields([Field::new("front")])
-            .templates([])
-            .with_field(Field::new("back"))
+        Model::new(12345, "test model", vec![Field::new("front")], vec![])
             .with_template(Template::new("template"))
             .css(css())
             .latex_post("")
             .latex_pre("")
             .sort_field_index(1)
-            .model_type(ModelType::FrontBack)
-            .build();
+            .model_type(ModelType::FrontBack);
     }
 }

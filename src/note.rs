@@ -33,7 +33,7 @@ impl Note {
     /// ```
     pub fn new(model: Model, fields: Vec<&str>) -> Result<Self, Error> {
         let fields = fields.iter().map(|&s| s.to_string()).collect();
-        let cards = match model.model_type() {
+        let cards = match model.get_model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
         };
@@ -68,7 +68,7 @@ impl Note {
             .collect();
         validate_tags(&tags)?;
         let fields = fields.iter().map(|s| s.to_string()).collect();
-        let cards = match model.model_type() {
+        let cards = match model.get_model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
         };
