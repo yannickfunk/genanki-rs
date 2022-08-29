@@ -59,26 +59,22 @@
 //! }
 //! ```
 //!
-//! This note-type has two fields and one card. The card displays the `Question` field on the front and the `Question` and
-//! `Answer` fields on the back, separated by a `<hr>`. You can also pass custom `css` by calling `Model::new_with_options()` to supply custom
-//! CSS.
+//! This note-type has two fields and one card. The card displays the
+//! `Question` field on the front and the `Question` and `Answer` fields on the
+//! back, separated by a `<hr>`. You can also pass custom `css` by calling
+//! [`Model::css`] to supply custom CSS.
 //!
 //! ```rust
 //! # use genanki_rs::{Field, Template, Model};
 //! let custom_css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\n}\n";
-//! let my_model_with_css = Model::new_with_options(
+//! let my_model_with_css = Model::new(
 //!     1607392319,
 //!     "Simple Model",
 //!     vec![Field::new("Question"), Field::new("Answer")],
 //!     vec![Template::new("Card 1")
 //!         .qfmt("{{Question}}")
-//!         .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
-//!     Some(custom_css),
-//!     None,
-//!     None,
-//!     None,
-//!     None,
-//! );
+//!         .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)])
+//!     .css(custom_css);
 //! ```
 //!
 //! You need to pass a model `id` and a model `name` so that Anki can keep track of your model. It's important that you use a unique model `id`
@@ -176,11 +172,15 @@
 //! You should only put the filename (aka basename) and not the full path in the field; `<img src="images/image.jpg">` will *not* work. Media files should have unique filenames.
 //!
 //! ### sort_field
-//! Anki has a value for each `Note` called the `sort_field`. Anki uses this value to sort the cards in the Browse
-//! interface. Anki also is happier if you avoid having two notes with the same `sort_field`, although this isn't strictly
-//! necessary. By default, the `sort_field` is the first field, but you can change it by calling `Note::new_with_options()`.
+//! Anki has a value for each `Note` called the `sort_field`. Anki uses this
+//! value to sort the cards in the Browse interface. Anki also is happier if
+//! you avoid having two notes with the same `sort_field`, although this isn't
+//! strictly necessary. By default, the `sort_field` is the first field, but
+//! you can change it by calling [`Note::sort_field`].
 //!
-//! You can also call `Model::new_with_options()`, passing the `sort_field_index` to change the sort field. `0` means the first field in the Note, `1` means the second, etc.
+//! You can also call [`Model::sort_field_index`], passing the
+//! `sort_field_index` to change the sort field. `0` means the first field in
+//! the Note, `1` means the second, etc.
 //!
 
 mod apkg_col;
