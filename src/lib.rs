@@ -27,7 +27,7 @@
 //!
 //! Here's how you create a `Note`:
 //!
-//! ```rust
+//! ```rust,ignore
 //! use genanki_rs::{Note, Error};
 //!
 //! fn main() -> Result<(), Error> {
@@ -64,6 +64,7 @@
 //! CSS.
 //!
 //! ```rust
+//! # use genanki_rs::{Field, Template, Model};
 //! let custom_css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\n}\n";
 //! let my_model_with_css = Model::new_with_options(
 //!     1607392319,
@@ -86,11 +87,13 @@
 //! ### Generating a Deck/Package
 //! To import your notes into Anki, you need to add them to a `Deck`:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use genanki_rs::{Deck, Error};
+//! # use genanki_rs::Note;
+//! # fn make_note() -> Note { todo!() }
 //!
 //! fn main() -> Result<(), Error> {
-//!     // let my_note = ...
+//!     let my_note = make_note();
 //!     let mut my_deck = Deck::new(
 //!         2059400110,
 //!         "Country Capitals",
@@ -105,7 +108,7 @@
 //!
 //! Then, create a `Package` for your `Deck` and write it to a file:
 //!
-//! ```rust
+//! ```rust,ignore
 //! my_deck.write_to_file("output.apkg")?;
 //! ```
 //!
@@ -114,7 +117,7 @@
 //! ### Media Files
 //! To add sounds or images, create a `Package` and pass the `decks` and `media_files` you want to include:
 //!
-//! ```rust
+//! ```rust,ignore
 //! use genanki_rs::{Deck, Error, Package};
 //!
 //! fn main() -> Result<(), Error> {
@@ -129,6 +132,7 @@
 //! `media_files` should have the path (relative or absolute) to each file. To use them in notes, first add a field to your model, and reference that field in your template:
 //!
 //! ```rust
+//! # use genanki_rs::{Template, Field, Model};
 //! let my_model = Model::new(
 //!     1607392319,
 //!     "Simple Model",
@@ -146,9 +150,25 @@
 //! Then, set the `MyMedia` field on your `Note` to `[sound:sound.mp3]` for audio and `<img src="image.jpg">` for images (e.g):
 //!
 //! ```rust
-//! let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires", "[sound:sound.mp3]"])?;
+//! # use genanki_rs::{Field, Template, Model, Error, Note};
+//! # fn main() -> Result<(), Error> {
+//! # let my_model = Model::new(
+//! #    1607392319,
+//! #    "Simple Model",
+//! #    vec![
+//! #        Field::new("Question"),
+//! #        Field::new("Answer"),
+//! #        Field::new("MyMedia"),                           // ADD THIS
+//! #    ],
+//! #    vec![Template::new("Card 1")
+//! #        .qfmt("{{Question}}{{Question}}<br>{{MyMedia}}") // AND THIS
+//! #        .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
+//! # );
+//! let my_note = Note::new(my_model.clone(), vec!["Capital of Argentina", "Buenos Aires", "[sound:sound.mp3]"])?;
 //! // or
-//! let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires", r#"<img src="image.jpg">"#])?;
+//! let my_note = Note::new(my_model.clone(), vec!["Capital of Argentina", "Buenos Aires", r#"<img src="image.jpg">"#])?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! You *cannot* put `<img src="{MyMedia}">` in the template and `image.jpg` in the field. See these sections in the Anki manual for more information: [Importing Media](https://docs.ankiweb.net/#/importing?id=importing-media) and [Media & LaTeX](https://docs.ankiweb.net/#/templates/fields?id=media-amp-latex).
