@@ -77,6 +77,7 @@ impl Model {
     /// * `latex_pre`: Custom latex declarations at the beginning of a card.
     /// * `latex_post`: Custom latex declarations at the end of a card.
     /// * `sort_field_index`: Custom sort field index
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_options(
         id: usize,
         name: &str,
@@ -98,6 +99,55 @@ impl Model {
             latex_pre: latex_pre.unwrap_or(DEFAULT_LATEX_PRE).to_string(),
             latex_post: latex_post.unwrap_or(DEFAULT_LATEX_POST).to_string(),
             sort_field_index: sort_field_index.unwrap_or(0),
+        }
+    }
+
+    /// Adds an additional field to the model
+    pub fn with_field(mut self, field: Field) -> Self {
+        self.fields.push(field.into());
+        self
+    }
+
+    /// Adds an additional template to the model
+    pub fn with_template(mut self, template: Template) -> Self {
+        self.templates.push(template.into());
+        self
+    }
+
+    /// Sets the custom CSS for this model
+    pub fn css(self, css: impl ToString) -> Self {
+        Self {
+            css: css.to_string(),
+            ..self
+        }
+    }
+
+    /// Change the type of the model
+    pub fn model_type(self, model_type: ModelType) -> Self {
+        Self { model_type, ..self }
+    }
+
+    /// Sets the model's latex_pre field
+    pub fn latex_pre(self, latex_pre: impl ToString) -> Self {
+        Self {
+            latex_pre: latex_pre.to_string(),
+            ..self
+        }
+    }
+
+    /// Sets the model's latex_post field
+    pub fn latex_post(self, latex_post: impl ToString) -> Self {
+        Self {
+            latex_post: latex_post.to_string(),
+            ..self
+        }
+    }
+
+    /// Sets the index of the field used for sorting with this model
+    pub fn sort_field_index(self, sort_field_index: i64) -> Self {
+        Self {
+            sort_field_index,
+            ..self
         }
     }
 
@@ -142,7 +192,7 @@ impl Model {
     pub(super) fn templates(&self) -> Vec<Tmpl> {
         self.templates.clone()
     }
-    pub(super) fn model_type(&self) -> ModelType {
+    pub(super) fn get_model_type(&self) -> ModelType {
         self.model_type.clone()
     }
     pub(super) fn to_model_db_entry(
@@ -383,5 +433,19 @@ mod tests {
             .collect::<Vec<i64>>();
         sorted.sort_unstable();
         assert_eq!(sorted, vec![0, 1]);
+    }
+
+    #[test]
+    fn build_all_fields() {
+        // A simple test to make sure we can call all the setters on the builder.
+        //
+        // It doesn't actually verify any behavior, it's basically just a smoke test.
+        Model::new(12345, "test model", vec![Field::new("front")], vec![])
+            .with_template(Template::new("template"))
+            .css(css())
+            .latex_post("")
+            .latex_pre("")
+            .sort_field_index(1)
+            .model_type(ModelType::FrontBack);
     }
 }

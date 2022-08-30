@@ -33,7 +33,7 @@ impl Note {
     /// ```
     pub fn new(model: Model, fields: Vec<&str>) -> Result<Self, Error> {
         let fields = fields.iter().map(|&s| s.to_string()).collect();
-        let cards = match model.model_type() {
+        let cards = match model.get_model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
         };
@@ -68,7 +68,7 @@ impl Note {
             .collect();
         validate_tags(&tags)?;
         let fields = fields.iter().map(|s| s.to_string()).collect();
-        let cards = match model.model_type() {
+        let cards = match model.get_model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
         };
@@ -82,6 +82,36 @@ impl Note {
             cards,
         })
     }
+
+    /// Returns a new Note with the sort field replace with the new one
+    pub fn sort_field(self, sort_field: bool) -> Self {
+        Self { sort_field, ..self }
+    }
+
+    /// Sets or replaces tags with the provided ones
+    pub fn tags(self, tags: impl IntoIterator<Item = impl ToString>) -> Self {
+        Self {
+            tags: tags.into_iter().map(|tag| tag.to_string()).collect(),
+            ..self
+        }
+    }
+
+    /// Adds an additional tag
+    pub fn with_tag(mut self, tag: impl ToString) -> Self {
+        self.tags.push(tag.to_string());
+        self
+    }
+
+    /// Sets the GUID for this note
+    ///
+    /// The GUID is auto-generated if this option is not provided.
+    pub fn guid(self, guid: impl ToString) -> Self {
+        Self {
+            guid: guid.to_string(),
+            ..self
+        }
+    }
+
     pub(super) fn model(&self) -> Model {
         self.model.clone()
     }
@@ -91,7 +121,7 @@ impl Note {
         self.cards.clone()
     }
 
-    fn guid(&self) -> String {
+    fn get_guid(&self) -> String {
         self.guid.clone()
     }
 
@@ -140,7 +170,7 @@ impl Note {
                 "INSERT INTO notes VALUES(?,?,?,?,?,?,?,?,?,?,?);",
                 params![
                     id_gen.next(),        // id
-                    self.guid(),          // guid
+                    self.get_guid(),      // guid
                     self.model.id,        // mid
                     timestamp as i64,     // mod
                     -1,                   // usn
@@ -477,5 +507,24 @@ mod tests {
     #[test]
     fn find_invalid_html_tags_in_field_ng_invalid_characters_end() {
         assert_eq!(find_invalid_html_tags_in_field("<h1@>"), vec!["<h1@>"]);
+    }
+
+    #[test]
+    fn option_builder() -> anyhow::Result<()> {
+        // Make sure we can call the different builder-style methods on Note.
+        // Doesn't actually verify any behavior though.
+        let model = Model::new(
+            1234,
+            "model",
+            vec![Field::new("a"), Field::new("b")],
+            vec![Template::new("template")],
+        );
+        let _note = Note::new(model, vec!["a", "b"])?
+            .guid("1234")
+            .tags(["tag_a"])
+            .with_tag("tag_b")
+            .sort_field(true);
+
+        Ok(())
     }
 }
