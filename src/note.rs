@@ -160,7 +160,7 @@ impl Note {
         &self,
         transaction: &Transaction,
         timestamp: f64,
-        deck_id: usize,
+        deck_id: i64,
         mut id_gen: &mut RangeFrom<usize>,
     ) -> Result<(), Error> {
         self.check_number_model_fields_matches_num_fields()?;

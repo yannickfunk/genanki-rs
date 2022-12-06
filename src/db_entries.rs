@@ -12,7 +12,7 @@ pub struct DeckDbEntry {
     pub extend_new: i64,
     #[serde(rename = "extendRev")]
     pub extend_rev: i64,
-    pub id: usize,
+    pub id: i64,
     #[serde(rename = "lrnToday")]
     pub lrn_today: Vec<i64>,
     #[serde(rename = "mod")]
@@ -38,7 +38,7 @@ pub struct ModelDbEntry {
     pub vers: Vec<Option<serde_json::Value>>,
     pub name: String,
     pub tags: Vec<Option<serde_json::Value>>,
-    pub did: usize,
+    pub did: i64,
     pub usn: i64,
     pub req: Vec<(usize, String, Vec<usize>)>,
     pub flds: Vec<Fld>,
