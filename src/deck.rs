@@ -15,7 +15,7 @@ pub struct Deck {
     name: String,
     description: String,
     notes: Vec<Note>,
-    models: HashMap<usize, Model>,
+    models: HashMap<i64, Model>,
 }
 
 impl Deck {
@@ -97,7 +97,7 @@ impl Deck {
         let models_json_str: String = transaction
             .query_row("SELECT models FROM col", [], |row| row.get(0))
             .map_err(database_error)?;
-        let mut models: HashMap<usize, ModelDbEntry> =
+        let mut models: HashMap<i64, ModelDbEntry> =
             serde_json::from_str(&models_json_str).map_err(json_error)?;
         for note in self.notes.clone().iter() {
             self.add_model(note.model());

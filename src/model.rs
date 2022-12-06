@@ -30,7 +30,7 @@ pub enum ModelType {
 /// `Model` to determine the structure of a `Note`
 #[derive(Clone)]
 pub struct Model {
-    pub id: usize,
+    pub id: i64,
     name: String,
     fields: Vec<Fld>,
     templates: Vec<Tmpl>,
@@ -57,7 +57,7 @@ impl Model {
     ///         .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
     /// );
     /// ```
-    pub fn new(id: usize, name: &str, fields: Vec<Field>, templates: Vec<Template>) -> Self {
+    pub fn new(id: i64, name: &str, fields: Vec<Field>, templates: Vec<Template>) -> Self {
         Self {
             id,
             name: name.to_string(),
@@ -79,7 +79,7 @@ impl Model {
     /// * `sort_field_index`: Custom sort field index
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_options(
-        id: usize,
+        id: i64,
         name: &str,
         fields: Vec<Field>,
         templates: Vec<Template>,
