@@ -36,14 +36,3 @@ jobs:
       run: cargo build
     - name: Run tests
       run: cargo test --lib
-
-    - name: Run cargo-tarpaulin
-      uses: actions-rs/tarpaulin@v0.1
-      with:
-        version: '0.15.0'
-        args: '-- --test-threads 1'
-
-    - name: Upload to codecov.io
-      uses: codecov/codecov-action@v3.1.1
-      with:
-        token: ${{secrets.CODECOV_TOKEN}}
