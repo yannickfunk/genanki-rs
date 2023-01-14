@@ -30,7 +30,7 @@ pub enum ModelType {
 /// `Model` to determine the structure of a `Note`
 #[derive(Clone)]
 pub struct Model {
-    pub id: usize,
+    pub id: i64,
     name: String,
     fields: Vec<Fld>,
     templates: Vec<Tmpl>,
@@ -57,7 +57,7 @@ impl Model {
     ///         .afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#)],
     /// );
     /// ```
-    pub fn new(id: usize, name: &str, fields: Vec<Field>, templates: Vec<Template>) -> Self {
+    pub fn new(id: i64, name: &str, fields: Vec<Field>, templates: Vec<Template>) -> Self {
         Self {
             id,
             name: name.to_string(),
@@ -79,7 +79,7 @@ impl Model {
     /// * `sort_field_index`: Custom sort field index
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_options(
-        id: usize,
+        id: i64,
         name: &str,
         fields: Vec<Field>,
         templates: Vec<Template>,
@@ -198,7 +198,7 @@ impl Model {
     pub(super) fn to_model_db_entry(
         &mut self,
         timestamp: f64,
-        deck_id: usize,
+        deck_id: i64,
     ) -> Result<ModelDbEntry, Error> {
         self.templates
             .iter_mut()
@@ -233,7 +233,7 @@ impl Model {
     }
 
     #[allow(dead_code)]
-    pub(super) fn to_json(&mut self, timestamp: f64, deck_id: usize) -> Result<String, Error> {
+    pub(super) fn to_json(&mut self, timestamp: f64, deck_id: i64) -> Result<String, Error> {
         Ok(
             serde_json::to_string(&self.to_model_db_entry(timestamp, deck_id)?)
                 .map_err(json_error)?,

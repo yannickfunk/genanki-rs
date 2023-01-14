@@ -21,7 +21,7 @@ impl Card {
         &self,
         transaction: &Transaction,
         timestamp: f64,
-        deck_id: usize,
+        deck_id: i64,
         note_id: usize,
         id_gen: &mut RangeFrom<usize>,
     ) -> Result<(), Error> {
