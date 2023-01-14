@@ -6,7 +6,7 @@ With `genanki-rs` you can easily generate decks for the popular open source flas
 
 *This library and its author(s) are not affiliated/associated with the main Anki project in any way.*
 
-![example workflow](https://github.com/yannickfunk/genanki-rs/actions/workflows/rust.yml/badge.svg)[![codecov](https://codecov.io/gh/yannickfunk/genanki-rs/branch/master/graph/badge.svg?token=16A3Z7SE6W)](https://codecov.io/gh/yannickfunk/genanki-rs)
+![example workflow](https://github.com/yannickfunk/genanki-rs/actions/workflows/rust.yml/badge.svg)
 
 ## Contribution
 Contributions in any form are welcome! Feel free to just create an Issue or a PR.
