@@ -5,7 +5,7 @@ use zip::{write::FileOptions, ZipWriter};
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 
 use crate::apkg_col::APKG_COL;
@@ -58,26 +58,41 @@ impl Package {
         Ok(Self { decks, media_files })
     }
 
+    /// Writes the package to any writer that implements Write and Seek
+    pub fn write<W: Write + Seek>(&mut self, writer: W) -> Result<(), Error> {
+        self.write_maybe_timestamp(writer, None)
+    }
+
+    /// Writes the package to any writer that implements Write and Seek using a timestamp
+    pub fn write_timestamp<W: Write + Seek>(
+        &mut self,
+        writer: W,
+        timestamp: f64,
+    ) -> Result<(), Error> {
+        self.write_maybe_timestamp(writer, Some(timestamp))
+    }
+
     /// Writes the package to a file
     ///
     /// Returns `Err` if the `file` cannot be created
     pub fn write_to_file(&mut self, file: &str) -> Result<(), Error> {
-        self.write_to_file_maybe_timestamp(file, None)
+        let file = File::create(file)?;
+        self.write_maybe_timestamp(file, None)
     }
 
     /// Writes the package to a file using a timestamp
     ///
     /// Returns `Err` if the `file` cannot be created
     pub fn write_to_file_timestamp(&mut self, file: &str, timestamp: f64) -> Result<(), Error> {
-        self.write_to_file_maybe_timestamp(file, Some(timestamp))
+        let file = File::create(file)?;
+        self.write_maybe_timestamp(file, Some(timestamp))
     }
 
-    fn write_to_file_maybe_timestamp(
+    fn write_maybe_timestamp<W: Write + Seek>(
         &mut self,
-        file: &str,
+        writer: W,
         timestamp: Option<f64>,
     ) -> Result<(), Error> {
-        let file = File::create(&file)?;
         let db_file = NamedTempFile::new()?.into_temp_path();
 
         let mut conn = Connection::open(&db_file).map_err(database_error)?;
@@ -93,7 +108,7 @@ impl Package {
         transaction.commit().map_err(database_error)?;
         conn.close().expect("Should always close");
 
-        let mut outzip = ZipWriter::new(file);
+        let mut outzip = ZipWriter::new(writer);
         outzip
             .start_file("collection.anki2", FileOptions::default())
             .map_err(zip_error)?;
