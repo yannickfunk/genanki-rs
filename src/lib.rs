@@ -171,6 +171,13 @@
 //!
 //! You should only put the filename (aka basename) and not the full path in the field; `<img src="images/image.jpg">` will *not* work. Media files should have unique filenames.
 //!
+//! ### Media files from memory
+//! If you want to add `media_files` from memory use [`Package::new_from_memory`] instead of [`Package::new`]:
+//! ```rust
+//! // ...
+//! let mut my_package = Package::new_from_memory(vec![deck], vec![MediaFile::new_from_bytes(&mp3_bytes, "sound.mp3"), MediaFile::new_from_bytes(&jpg_bytes, "image.jpg")])?;
+//! ```
+//! 
 //! ### sort_field
 //! Anki has a value for each `Note` called the `sort_field`. Anki uses this
 //! value to sort the cards in the Browse interface. Anki also is happier if
