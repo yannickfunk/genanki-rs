@@ -43,9 +43,31 @@ use std::str::FromStr;
 /// ```
 pub struct Package {
     decks: Vec<Deck>,
-    media_files: Vec<PathBuf>,
+    media_files: Vec<MediaFile>,
 }
+/// the location of the media files, either as a path on the filesystem or as bytes from memory
+pub enum MediaFile {
+    /// a path on the filesystem
+    Path(PathBuf),
+    /// bytes from memory and a filename
+    Bytes(Vec<u8>, String),
+}
+impl MediaFile {
+    /// Create a new `MediaFile` from a path on the filesystem
+    pub fn new_from_file<P: AsRef<Path>>(path: P) -> Self {
+        Self::Path(path.as_ref().to_path_buf())
+    }
 
+    /// Create a new `MediaFile` from a path on the filesystem
+    pub fn new_from_file_path(path: &str) -> Result<Self, Error> {
+        Ok(Self::Path(PathBuf::from_str(path)?))
+    }
+
+    /// Create a new `MediaFile` from bytes from memory and a filename
+    pub fn new_from_bytes(bytes: &[u8], name: &str) -> Self {
+        Self::Bytes(bytes.to_vec(), name.to_owned())
+    }
+}
 impl Package {
     /// Create a new package with `decks` and `media_files`
     ///
@@ -53,8 +75,16 @@ impl Package {
     pub fn new(decks: Vec<Deck>, media_files: Vec<&str>) -> Result<Self, Error> {
         let media_files = media_files
             .iter()
-            .map(|&s| PathBuf::from_str(s))
+            .map(|&s| PathBuf::from_str(s).map(|p| MediaFile::Path(p)))
             .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self { decks, media_files })
+    }
+
+    /// Create a new package with `decks` and `media_files`,
+    /// where `media_files` can be bytes from memory or a path on the filesystem
+    /// 
+    /// Returns `Err` if `media_files` are invalid
+    pub fn new_from_memory(decks: Vec<Deck>, media_files: Vec<MediaFile>) -> Result<Self, Error> {
         Ok(Self { decks, media_files })
     }
 
@@ -118,17 +148,20 @@ impl Package {
             .media_files
             .iter()
             .enumerate()
-            .collect::<HashMap<usize, &PathBuf>>();
+            .collect::<HashMap<usize, &MediaFile>>();
         let media_map = media_file_idx_to_path
             .clone()
             .into_iter()
-            .map(|(id, path)| {
+            .map(|(id, media_file)| {
                 (
                     id.to_string(),
-                    path.file_name()
-                        .expect("Should always have a filename")
-                        .to_str()
-                        .expect("should always have string"),
+                    match media_file {
+                        MediaFile::Path(path) => path.file_name()
+                            .expect("Should always have a filename")
+                            .to_str()
+                            .expect("should always have string"),
+                        MediaFile::Bytes(_, name) => name,
+                    },
                 )
             })
             .collect::<HashMap<String, &str>>();
@@ -138,11 +171,14 @@ impl Package {
             .map_err(zip_error)?;
         outzip.write_all(media_json.as_bytes())?;
 
-        for (idx, &path) in &media_file_idx_to_path {
+        for (idx, &media_file) in &media_file_idx_to_path {
             outzip
                 .start_file(idx.to_string(), FileOptions::default())
                 .map_err(zip_error)?;
-            outzip.write_all(&read_file_bytes(path)?)?;
+            outzip.write_all(&match media_file {
+                MediaFile::Path(path) => read_file_bytes(path)?,
+                MediaFile::Bytes(bytes, _) => bytes.clone(),
+            })?;
         }
         outzip.finish().map_err(zip_error)?;
         Ok(())
