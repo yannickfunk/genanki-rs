@@ -171,6 +171,13 @@
 //!
 //! You should only put the filename (aka basename) and not the full path in the field; `<img src="images/image.jpg">` will *not* work. Media files should have unique filenames.
 //!
+//! ### Media files from memory
+//! If you want to add `media_files` from memory use [`Package::new_from_memory`] instead of [`Package::new`]:
+//! ```rust
+//! // ...
+//! let mut my_package = Package::new_from_memory(vec![deck], vec![MediaFile::new_from_bytes(&mp3_bytes, "sound.mp3"), MediaFile::new_from_bytes(&jpg_bytes, "image.jpg")])?;
+//! ```
+//! 
 //! ### sort_field
 //! Anki has a value for each `Note` called the `sort_field`. Anki uses this
 //! value to sort the cards in the Browse interface. Anki also is happier if
@@ -203,6 +210,7 @@ pub use error::Error;
 pub use model::{Model, ModelType};
 pub use note::Note;
 pub use package::Package;
+pub use package::MediaFile;
 
 #[cfg(test)]
 mod tests {
@@ -582,7 +590,7 @@ def check_media(col):
 
     #[test]
     #[serial]
-    fn media_files() {
+    fn media_files_fs() {
         let tmp_dir = TempDir::new().unwrap();
         std::env::set_current_dir(tmp_dir.path()).unwrap();
 
@@ -613,6 +621,32 @@ def check_media(col):
 
             std::fs::remove_file("present.mp3").unwrap();
             std::fs::remove_file("present.jpg").unwrap();
+
+            let (missing, _, _) = setup.check_media();
+            assert_eq!(missing.len(), 2);
+            assert!(missing.contains(&"missing.jpg".to_string()));
+            assert!(missing.contains(&"missing.mp3".to_string()));
+        });
+    }
+    #[test]
+    #[serial]
+    fn media_files_mem() {
+        let mut deck = Deck::new(123456, "foodeck", "");
+        let note = Note::new(
+            model(),
+            vec![
+                "question [sound:present.mp3] [sound:missing.mp3]",
+                r#"answer <img src="present.jpg"> <img src="missing.jpg">"#,
+            ],
+        )
+        .unwrap();
+        deck.add_note(note);
+        Python::with_gil(|py| {
+            let mut setup = TestSetup::new(&py);
+            setup.import_package(
+                Package::new_from_memory(vec![deck], vec![MediaFile::new_from_bytes(VALID_MP3, "present.mp3"), MediaFile::new_from_bytes(VALID_JPG, "present.jpg")]).unwrap(),
+                None,
+            );
 
             let (missing, _, _) = setup.check_media();
             assert_eq!(missing.len(), 2);
