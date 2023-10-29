@@ -62,6 +62,10 @@ impl Field {
         self.size = Some(value);
         self
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl Into<Fld> for Field {
