@@ -5,6 +5,7 @@ use crate::{Error, Field};
 use fancy_regex::Regex;
 use ramhorns::Template as RamTemplate;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 const DEFAULT_LATEX_PRE: &str = r#"
 \documentclass[12pt]{article}
@@ -17,6 +18,7 @@ const DEFAULT_LATEX_PRE: &str = r#"
 
 "#;
 const DEFAULT_LATEX_POST: &str = r"\end{document}";
+const SENTINEL: &str = "SeNtInEl";
 
 /// `FrontBack` or `Cloze` to determine the type of a Model.
 ///
@@ -39,6 +41,7 @@ pub struct Model {
     latex_pre: String,
     latex_post: String,
     sort_field_index: i64,
+    sentinel_regexes: Rc<Vec<Regex>>, // Rc<_> so this can be clone
 }
 
 impl Model {
@@ -68,6 +71,7 @@ impl Model {
             latex_pre: DEFAULT_LATEX_PRE.to_string(),
             latex_post: DEFAULT_LATEX_POST.to_string(),
             sort_field_index: 0,
+            sentinel_regexes: compile_sentinel_regexes(&fields),
         }
     }
 
@@ -99,6 +103,7 @@ impl Model {
             latex_pre: latex_pre.unwrap_or(DEFAULT_LATEX_PRE).to_string(),
             latex_post: latex_post.unwrap_or(DEFAULT_LATEX_POST).to_string(),
             sort_field_index: sort_field_index.unwrap_or(0),
+            sentinel_regexes: compile_sentinel_regexes(&fields),
         }
     }
 
@@ -152,11 +157,10 @@ impl Model {
     }
 
     pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, Error> {
-        let sentinel = "SeNtInEl".to_string();
         let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
         let field_values = field_names
             .iter()
-            .map(|field| (field.as_str(), format!("{}{}", &field, &sentinel)));
+            .map(|field| (field.as_str(), format!("{}{}", &field, &SENTINEL)));
         let mut req = Vec::new();
         for (template_ord, template) in self.templates.iter().enumerate() {
             let rendered = RamTemplate::new(template.qfmt.clone())
@@ -165,7 +169,7 @@ impl Model {
             let required_fields = field_values
                 .clone()
                 .enumerate()
-                .filter(|(_, (_, field))| !contains_other_fields(&rendered, field, &sentinel))
+                .filter(|(field_ord, _)| !self.contains_other_fields(&rendered, *field_ord))
                 .map(|(field_ord, _)| field_ord)
                 .collect::<Vec<_>>();
             if !required_fields.is_empty() {
@@ -239,17 +243,26 @@ impl Model {
                 .map_err(json_error)?,
         )
     }
+
+    fn contains_other_fields(&self, rendered: &str, field_ord: usize) -> bool {
+        self.sentinel_regexes[field_ord].is_match(rendered).unwrap()
+    }
 }
 
-fn contains_other_fields(rendered: &str, current_field: &str, sentinel: &str) -> bool {
-    Regex::new(&format!(
-        "(?!{field}\\b)\\b(\\w)*{sentinel}+",
-        field = current_field,
-        sentinel = sentinel
-    ))
-    .unwrap()
-    .is_match(rendered)
-    .unwrap()
+fn compile_sentinel_regexes(fields: &[Field]) -> Rc<Vec<Regex>> {
+    Rc::new(
+        fields
+            .iter()
+            .map(|f| {
+                Regex::new(&format!(
+                    "(?!{field}{sentinel}\\b)\\b(\\w)*{sentinel}+",
+                    field = f.name(),
+                    sentinel = SENTINEL
+                ))
+                .unwrap()
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
