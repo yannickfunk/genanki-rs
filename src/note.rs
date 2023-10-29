@@ -9,6 +9,20 @@ use std::collections::HashSet;
 use std::ops::RangeFrom;
 use std::str::FromStr;
 
+use once_cell::sync::Lazy;
+
+static CLOZE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"{{[^}]*?cloze:(?:[^}]?:)*(.+?)}}").expect("static regex"));
+
+static CLOZE2_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new("<%cloze:(.+?)%>").expect("static regex"));
+
+static UPDATES_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?s){{c(\d+)::.+?}}").expect("static regex"));
+
+static INVALID_HTML_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"<(?!/?[a-z0-9]+(?: .*|/?)>)(?:.|\n)*?>").expect("static regex"));
+
 /// Note (Flashcard) to be added to a `Deck`
 #[derive(Clone)]
 pub struct Note {
@@ -194,11 +208,8 @@ impl Note {
 fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
     let mut card_ords: HashSet<i64> = HashSet::new();
     let mut cloze_replacements: HashSet<String> = HashSet::new();
-    cloze_replacements.extend(re_findall(
-        r"{{[^}]*?cloze:(?:[^}]?:)*(.+?)}}",
-        &model.templates()[0].qfmt,
-    ));
-    cloze_replacements.extend(re_findall("<%cloze:(.+?)%>", &model.templates()[0].qfmt));
+    cloze_replacements.extend(re_findall(&CLOZE_REGEX, &model.templates()[0].qfmt));
+    cloze_replacements.extend(re_findall(&CLOZE2_REGEX, &model.templates()[0].qfmt));
     for field_name in cloze_replacements {
         let fields = model.fields();
         let mut field_index_iter = fields
@@ -211,7 +222,7 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
         } else {
             "".to_string()
         };
-        let updates_str = re_findall(r"(?s){{c(\d+)::.+?}}", &field_value);
+        let updates_str = re_findall(&UPDATES_REGEX, &field_value);
         let updates = updates_str
             .iter()
             .map(|m| i64::from_str(m).expect("parsed from regex") - 1)
@@ -243,8 +254,7 @@ fn front_back_cards(model: &Model, self_fields: &Vec<String>) -> Result<Vec<Card
     Ok(rv)
 }
 
-fn re_findall(regex_str: &'static str, to_match: &str) -> Vec<String> {
-    let regex = Regex::new(regex_str).expect("static regex");
+fn re_findall(regex: &Regex, to_match: &str) -> Vec<String> {
     regex
         .captures_iter(to_match)
         .filter_map(|m| m.ok())
@@ -268,8 +278,7 @@ fn validate_tags(tags: &Vec<String>) -> Result<(), Error> {
 }
 
 fn find_invalid_html_tags_in_field(field: &str) -> Vec<String> {
-    let regex = Regex::new(r"<(?!/?[a-z0-9]+(?: .*|/?)>)(?:.|\n)*?>").unwrap();
-    regex
+    INVALID_HTML_REGEX
         .find_iter(field)
         .map(|m| m.unwrap().as_str().to_string())
         .collect()
