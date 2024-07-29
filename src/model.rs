@@ -42,7 +42,7 @@ pub struct Model {
 }
 
 impl Model {
-    /// Creates a new model with a unique(!) `ìd`, a `name`, `fields` and  `templates`
+    /// Creates a new model with a unique(!) `id`, a `name`, `fields` and  `templates`
     ///
     /// Example:
     ///
