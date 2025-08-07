@@ -2,7 +2,6 @@ use crate::builders::Template;
 use crate::db_entries::{Fld, ModelDbEntry, Tmpl};
 use crate::error::{json_error, template_error};
 use crate::{Error, Field};
-use fancy_regex::Regex;
 use ramhorns::Template as RamTemplate;
 use std::collections::HashMap;
 
@@ -39,6 +38,7 @@ pub struct Model {
     latex_pre: String,
     latex_post: String,
     sort_field_index: i64,
+    required_fields: Vec<(usize, String, Vec<usize>)>,
 }
 
 impl Model {
@@ -58,16 +58,21 @@ impl Model {
     /// );
     /// ```
     pub fn new(id: i64, name: &str, fields: Vec<Field>, templates: Vec<Template>) -> Self {
+        let fields_internal: Vec<Fld> = fields.iter().cloned().map(|f| f.into()).collect();
+        let templates_internal: Vec<Tmpl> = templates.iter().cloned().map(|t| t.into()).collect();
+        let required_fields = Self::calculate_required_fields(&fields_internal, &templates_internal).unwrap_or_default();
+        
         Self {
             id,
             name: name.to_string(),
-            fields: fields.iter().cloned().map(|f| f.into()).collect(),
-            templates: templates.iter().cloned().map(|t| t.into()).collect(),
+            fields: fields_internal,
+            templates: templates_internal,
             css: "".to_string(),
             model_type: ModelType::FrontBack,
             latex_pre: DEFAULT_LATEX_PRE.to_string(),
             latex_post: DEFAULT_LATEX_POST.to_string(),
             sort_field_index: 0,
+            required_fields,
         }
     }
 
@@ -89,28 +94,35 @@ impl Model {
         latex_post: Option<&str>,
         sort_field_index: Option<i64>,
     ) -> Self {
+        let fields_internal: Vec<Fld> = fields.iter().cloned().map(|f| f.into()).collect();
+        let templates_internal: Vec<Tmpl> = templates.iter().cloned().map(|t| t.into()).collect();
+        let required_fields = Self::calculate_required_fields(&fields_internal, &templates_internal).unwrap_or_default();
+        
         Self {
             id,
             name: name.to_string(),
-            fields: fields.iter().cloned().map(|f| f.into()).collect(),
-            templates: templates.iter().cloned().map(|t| t.into()).collect(),
+            fields: fields_internal,
+            templates: templates_internal,
             css: css.unwrap_or("").to_string(),
             model_type: model_type.unwrap_or(ModelType::FrontBack),
             latex_pre: latex_pre.unwrap_or(DEFAULT_LATEX_PRE).to_string(),
             latex_post: latex_post.unwrap_or(DEFAULT_LATEX_POST).to_string(),
             sort_field_index: sort_field_index.unwrap_or(0),
+            required_fields,
         }
     }
 
     /// Adds an additional field to the model
     pub fn with_field(mut self, field: Field) -> Self {
         self.fields.push(field.into());
+        self.required_fields = Self::calculate_required_fields(&self.fields, &self.templates).unwrap_or_default();
         self
     }
 
     /// Adds an additional template to the model
     pub fn with_template(mut self, template: Template) -> Self {
         self.templates.push(template.into());
+        self.required_fields = Self::calculate_required_fields(&self.fields, &self.templates).unwrap_or_default();
         self
     }
 
@@ -152,38 +164,7 @@ impl Model {
     }
 
     pub(super) fn req(&self) -> Result<Vec<(usize, String, Vec<usize>)>, Error> {
-        let sentinel = "SeNtInEl".to_string();
-        let field_names: Vec<String> = self.fields.iter().map(|field| field.name.clone()).collect();
-        let field_values = field_names
-            .iter()
-            .map(|field| (field.as_str(), format!("{}{}", &field, &sentinel)));
-        let mut req = Vec::new();
-        for (template_ord, template) in self.templates.iter().enumerate() {
-            let rendered = RamTemplate::new(template.qfmt.clone())
-                .map_err(template_error)?
-                .render::<HashMap<&str, String>>(&field_values.clone().collect());
-            let required_fields = field_values
-                .clone()
-                .enumerate()
-                .filter(|(_, (_, field))| !contains_other_fields(&rendered, field, &sentinel))
-                .map(|(field_ord, _)| field_ord)
-                .collect::<Vec<_>>();
-            if !required_fields.is_empty() {
-                req.push((template_ord, "all".to_string(), required_fields));
-                continue;
-            }
-            let required_fields = field_values
-                .clone()
-                .enumerate()
-                .filter(|(_, (_, sentinel))| rendered.contains(sentinel))
-                .map(|(field_ord, _)| field_ord)
-                .collect::<Vec<_>>();
-            if required_fields.is_empty() {
-                return Err(Error::TemplateFormat(template.clone()));
-            }
-            req.push((template_ord, "any".to_string(), required_fields))
-        }
-        Ok(req)
+        Ok(self.required_fields.clone())
     }
 
     pub(super) fn fields(&self) -> Vec<Fld> {
@@ -239,17 +220,65 @@ impl Model {
                 .map_err(json_error)?,
         )
     }
-}
 
-fn contains_other_fields(rendered: &str, current_field: &str, sentinel: &str) -> bool {
-    Regex::new(&format!(
-        "(?!{field}\\b)\\b(\\w)*{sentinel}+",
-        field = current_field,
-        sentinel = sentinel
-    ))
-    .unwrap()
-    .is_match(rendered)
-    .unwrap()
+    // Required fields are calculated eagerly as a performance optimization
+    fn calculate_required_fields(fields: &[Fld], templates: &[Tmpl]) -> Result<Vec<(usize, String, Vec<usize>)>, Error> {
+        let sentinel = "SeNtInEl".to_string();
+        let field_names: Vec<String> = fields.iter().map(|field| field.name.clone()).collect();
+        let mut req = Vec::new();
+        
+        for (template_ord, template) in templates.iter().enumerate() {
+            let mut required_fields = Vec::new();
+            
+            // Check for "all" - fields that are required (template is empty when field is missing)
+            for (field_ord, field_name) in field_names.iter().enumerate() {
+                let mut field_values: HashMap<&str, String> = field_names
+                    .iter()
+                    .map(|f| (f.as_str(), sentinel.clone()))
+                    .collect();
+                field_values.insert(field_name.as_str(), String::new());
+                
+                let rendered = RamTemplate::new(template.qfmt.clone())
+                    .map_err(template_error)?
+                    .render(&field_values);
+                
+                if !rendered.contains(&sentinel) {
+                    // When this field is empty, no meaningful content appears
+                    required_fields.push(field_ord);
+                }
+            }
+            
+            if !required_fields.is_empty() {
+                req.push((template_ord, "all".to_string(), required_fields));
+                continue;
+            }
+            
+            // Check for "any" - fields that can provide content
+            required_fields.clear();
+            for (field_ord, field_name) in field_names.iter().enumerate() {
+                let mut field_values: HashMap<&str, String> = field_names
+                    .iter()
+                    .map(|f| (f.as_str(), String::new()))
+                    .collect();
+                field_values.insert(field_name.as_str(), sentinel.clone());
+                
+                let rendered = RamTemplate::new(template.qfmt.clone())
+                    .map_err(template_error)?
+                    .render(&field_values);
+                
+                if rendered.contains(&sentinel) {
+                    // When only this field has content, it appears in the output
+                    required_fields.push(field_ord);
+                }
+            }
+            
+            if required_fields.is_empty() {
+                return Err(Error::TemplateFormat(template.clone()));
+            }
+            req.push((template_ord, "any".to_string(), required_fields))
+        }
+        Ok(req)
+    }
 }
 
 #[cfg(test)]
