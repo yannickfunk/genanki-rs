@@ -32,7 +32,7 @@ impl Note {
     /// let note = Note::new(basic_model(), vec!["What is the capital of France?", "Paris"]);
     /// ```
     pub fn new(model: Model, fields: Vec<&str>) -> Result<Self, Error> {
-        let fields = fields.iter().map(|&s| s.to_string()).collect();
+        let fields: Vec<_> = fields.iter().map(|&s| s.to_string()).collect();
         let cards = match model.get_model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
@@ -61,13 +61,13 @@ impl Note {
         tags: Option<Vec<&str>>,
         guid: Option<&str>,
     ) -> Result<Self, Error> {
-        let tags = tags
+        let tags: Vec<_> = tags
             .unwrap_or_default()
             .iter()
             .map(|s| s.to_string())
             .collect();
         validate_tags(&tags)?;
-        let fields = fields.iter().map(|s| s.to_string()).collect();
+        let fields: Vec<_> = fields.iter().map(|s| s.to_string()).collect();
         let cards = match model.get_model_type() {
             ModelType::FrontBack => front_back_cards(&model, &fields)?,
             ModelType::Cloze => cloze_cards(&model, &fields),
@@ -161,7 +161,7 @@ impl Note {
         transaction: &Transaction,
         timestamp: f64,
         deck_id: i64,
-        mut id_gen: &mut RangeFrom<usize>,
+        id_gen: &mut RangeFrom<usize>,
     ) -> Result<(), Error> {
         self.check_number_model_fields_matches_num_fields()?;
         self.check_invalid_html_tags_in_fields()?;
@@ -185,13 +185,13 @@ impl Note {
             .map_err(database_error)?;
         let note_id = transaction.last_insert_rowid() as usize;
         for card in &self.cards {
-            card.write_to_db(transaction, timestamp, deck_id, note_id, &mut id_gen)?
+            card.write_to_db(transaction, timestamp, deck_id, note_id, id_gen)?
         }
         Ok(())
     }
 }
 
-fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
+fn cloze_cards(model: &Model, self_fields: &[String]) -> Vec<Card> {
     let mut card_ords: HashSet<i64> = HashSet::new();
     let mut cloze_replacements: HashSet<String> = HashSet::new();
     cloze_replacements.extend(re_findall(
@@ -227,13 +227,13 @@ fn cloze_cards(model: &Model, self_fields: &Vec<String>) -> Vec<Card> {
         .collect()
 }
 
-fn front_back_cards(model: &Model, self_fields: &Vec<String>) -> Result<Vec<Card>, Error> {
+fn front_back_cards(model: &Model, self_fields: &[String]) -> Result<Vec<Card>, Error> {
     let mut rv = vec![];
     for (card_ord, any_or_all, required_field_ords) in model.req()?.drain(..) {
         let mut iter = required_field_ords.iter().map(|&ord| &self_fields[ord]);
         let condition = match any_or_all.as_str() {
-            "any" => iter.any(|field| field.len() > 0),
-            "all" => iter.all(|field| field.len() > 0),
+            "any" => iter.any(|field| !field.is_empty()),
+            "all" => iter.all(|field| !field.is_empty()),
             _ => panic!("only any or all"),
         };
         if condition {
@@ -248,18 +248,17 @@ fn re_findall(regex_str: &'static str, to_match: &str) -> Vec<String> {
     regex
         .captures_iter(to_match)
         .filter_map(|m| m.ok())
-        .map(|cap| {
+        .flat_map(|cap| {
             cap.iter()
                 .skip(1)
-                .filter_map(|m| m)
+                .flatten()
                 .map(|m| m.as_str().to_string())
                 .collect::<Vec<String>>()
         })
-        .flatten()
         .collect()
 }
 
-fn validate_tags(tags: &Vec<String>) -> Result<(), Error> {
+fn validate_tags(tags: &[String]) -> Result<(), Error> {
     if tags.iter().any(|tag| tag.contains(' ')) {
         Err(Error::TagContainsWhitespace)
     } else {
@@ -286,7 +285,7 @@ mod tests {
     use tempfile::{NamedTempFile, TempPath};
 
     fn write_to_db_setup(db_file: &TempPath) -> (Connection, f64, i64, RangeFrom<usize>) {
-        let conn = Connection::open(&db_file).unwrap();
+        let conn = Connection::open(db_file).unwrap();
         conn.execute_batch(APKG_SCHEMA).unwrap();
         conn.execute_batch(APKG_COL).unwrap();
         let timestamp = SystemTime::now()

@@ -221,7 +221,7 @@ impl Model {
             usn: -1,
             req: self.req()?.clone(),
             flds: self.fields.clone(),
-            sortf: self.sort_field_index.clone(),
+            sortf: self.sort_field_index,
             tmpls: self.templates.clone(),
             model_db_entry_mod: timestamp as i64,
             latex_post: self.latex_post.clone(),
@@ -234,10 +234,7 @@ impl Model {
 
     #[allow(dead_code)]
     pub(super) fn to_json(&mut self, timestamp: f64, deck_id: i64) -> Result<String, Error> {
-        Ok(
-            serde_json::to_string(&self.to_model_db_entry(timestamp, deck_id)?)
-                .map_err(json_error)?,
-        )
+        serde_json::to_string(&self.to_model_db_entry(timestamp, deck_id)?).map_err(json_error)
     }
 }
 

@@ -6,7 +6,7 @@ use crate::db_entries::Fld;
 ///
 /// Example:
 ///
-/// ```rust
+/// ```
 /// use genanki_rs::Field;
 ///
 /// let field1 = Field::new("field1");
@@ -64,16 +64,16 @@ impl Field {
     }
 }
 
-impl Into<Fld> for Field {
-    fn into(self) -> Fld {
+impl From<Field> for Fld {
+    fn from(value: Field) -> Self {
         Fld {
-            name: self.name.to_string(),
+            name: value.name.to_string(),
             media: vec![],
-            sticky: self.sticky.unwrap_or(false),
-            rtl: self.rtl.unwrap_or(false),
+            sticky: value.sticky.unwrap_or(false),
+            rtl: value.rtl.unwrap_or(false),
             ord: 0,
-            font: self.font.unwrap_or("Liberation Sans".to_string()),
-            size: self.size.unwrap_or(20),
+            font: value.font.unwrap_or("Liberation Sans".to_string()),
+            size: value.size.unwrap_or(20),
         }
     }
 }

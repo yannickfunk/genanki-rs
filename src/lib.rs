@@ -8,16 +8,16 @@
 //! ```
 //! ## Minimal Example
 //! The following example creates a simple deck, containing 2 question-answer flashcards:
-//! ```rust
+//! ```
 //! use genanki_rs::{basic_model, Deck, Error, Note};
 //!
-//! fn main() -> Result<(), Error> {
-//!     let mut deck = Deck::new(1234, "Example Deck", "Example Deck containing 2 Flashcards");
-//!     deck.add_note(Note::new(basic_model(), vec!["What is the capital of France?", "Paris"])?);
-//!     deck.add_note(Note::new(basic_model(), vec!["What is the capital of Germany?", "Berlin"])?);
-//!     deck.write_to_file("output.apkg")?;
-//!     Ok(())
-//! }
+//! # fn main() -> Result<(), Error> {
+//! let mut deck = Deck::new(1234, "Example Deck", "Example Deck containing 2 Flashcards");
+//! deck.add_note(Note::new(basic_model(), vec!["What is the capital of France?", "Paris"])?);
+//! deck.add_note(Note::new(basic_model(), vec!["What is the capital of Germany?", "Berlin"])?);
+//! deck.write_to_file("output.apkg")?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Concepts
@@ -27,14 +27,14 @@
 //!
 //! Here's how you create a `Note`:
 //!
-//! ```rust,ignore
-//! use genanki_rs::{Note, Error};
+//! ```
+//! use genanki_rs::{basic_model, Note, Error};
 //!
-//! fn main() -> Result<(), Error> {
-//!     // let my_model = ...
-//!     let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"])?;
-//!     Ok(())
-//! }
+//! # fn main() -> Result<(), Error> {
+//! let my_model = basic_model();
+//! let my_note = Note::new(my_model, vec!["Capital of Argentina", "Buenos Aires"])?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! You pass in a `Model`, discussed below, and a set of `fields` (encoded as HTML).
@@ -42,7 +42,7 @@
 //! ### Models
 //! A `Model` defines the fields and cards for a type of `Note`. For example:
 //!
-//! ```rust
+//! ```
 //! use genanki_rs::{Field, Model, Template, Error};
 //!
 //! fn main() -> Result<(), Error> {
@@ -64,7 +64,7 @@
 //! back, separated by a `<hr>`. You can also pass custom `css` by calling
 //! [`Model::css`] to supply custom CSS.
 //!
-//! ```rust
+//! ```
 //! # use genanki_rs::{Field, Template, Model};
 //! let custom_css = ".card {\n font-family: arial;\n font-size: 20px;\n text-align: center;\n color: black;\n}\n";
 //! let my_model_with_css = Model::new(
@@ -83,28 +83,30 @@
 //! ### Generating a Deck/Package
 //! To import your notes into Anki, you need to add them to a `Deck`:
 //!
-//! ```rust,no_run
+//! ```
 //! use genanki_rs::{Deck, Error};
-//! # use genanki_rs::Note;
-//! # fn make_note() -> Note { todo!() }
+//! # use genanki_rs::{basic_model, Note};
+//! # fn make_note() -> Note {
+//! #     Note::new(basic_model(), vec!["What is the capital of France?", "Paris"]).unwrap()
+//! # }
 //!
-//! fn main() -> Result<(), Error> {
-//!     let my_note = make_note();
-//!     let mut my_deck = Deck::new(
-//!         2059400110,
-//!         "Country Capitals",
-//!         "Deck for studying country capitals",
-//!     );
-//!     my_deck.add_note(my_note);
-//!     Ok(())
-//! }
+//! # fn main() -> Result<(), Error> {
+//! let my_note = make_note();
+//! let mut my_deck = Deck::new(
+//!     2059400110,
+//!     "Country Capitals",
+//!     "Deck for studying country capitals",
+//! );
+//! my_deck.add_note(my_note);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! Once again, you need a unique deck `id`, a deck `name` and a deck `description`.
 //!
 //! Then, create a `Package` for your `Deck` and write it to a file:
 //!
-//! ```rust,ignore
+//! ```ignore
 //! my_deck.write_to_file("output.apkg")?;
 //! ```
 //!
@@ -113,7 +115,7 @@
 //! ### Media Files
 //! To add sounds or images, create a `Package` and pass the `decks` and `media_files` you want to include:
 //!
-//! ```rust,ignore
+//! ```ignore
 //! use genanki_rs::{Deck, Error, Package};
 //!
 //! fn main() -> Result<(), Error> {
@@ -127,7 +129,7 @@
 //!
 //! `media_files` should have the path (relative or absolute) to each file. To use them in notes, first add a field to your model, and reference that field in your template:
 //!
-//! ```rust
+//! ```
 //! # use genanki_rs::{Template, Field, Model};
 //! let my_model = Model::new(
 //!     1607392319,
@@ -145,7 +147,7 @@
 //!
 //! Then, set the `MyMedia` field on your `Note` to `[sound:sound.mp3]` for audio and `<img src="image.jpg">` for images (e.g):
 //!
-//! ```rust
+//! ```
 //! # use genanki_rs::{Field, Template, Model, Error, Note};
 //! # fn main() -> Result<(), Error> {
 //! # let my_model = Model::new(
@@ -183,6 +185,8 @@
 //! the Note, `1` means the second, etc.
 //!
 
+#![allow(clippy::result_large_err, clippy::wrong_self_convention)]
+
 mod apkg_col;
 mod apkg_schema;
 mod builders;
@@ -207,14 +211,26 @@ pub use package::Package;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pyo3::types::PyDict;
+    use pyo3::types::{PyAnyMethods, PyDict};
+    use pyo3::Bound;
     use pyo3::{
         types::{PyModule, PyString},
         PyAny, Python,
     };
     use serial_test::serial;
+    use std::ffi::CString;
     use std::io::Write;
     use tempfile::{NamedTempFile, TempDir, TempPath};
+
+    trait AsCString {
+        fn as_cstring(self) -> CString;
+    }
+
+    impl AsCString for &str {
+        fn as_cstring(self) -> CString {
+            CString::new(self).unwrap()
+        }
+    }
 
     fn model() -> Model {
         Model::new(
@@ -321,7 +337,7 @@ mod tests {
         \x01\x01\x11\x00\xff\xcc\x00\x06\x00\x10\x10\x05\xff\xda\x00\x08\x01\x01\
         \x00\x00?\x00\xd2\xcf \xff\xd9";
 
-    pub fn anki_collection<'a>(py: &'a Python, col_fname: &str) -> &'a PyAny {
+    pub fn anki_collection<'a>(py: &'a Python, col_fname: &str) -> Bound<'a, PyAny> {
         let code = r#"
 import anki.collection
 import tempfile
@@ -331,18 +347,23 @@ def setup(fname):
     colf_name = f"{fname}.anki2"
     return anki.collection.Collection(colf_name)
 "#;
-        let setup = PyModule::from_code(*py, code, "test_setup", "test_setup.py")
-            .unwrap()
-            .to_owned();
+        let setup = PyModule::from_code(
+            *py,
+            code.as_cstring().as_c_str(),
+            "test_setup".as_cstring().as_c_str(),
+            "test_setup.py".as_cstring().as_c_str(),
+        )
+        .unwrap()
+        .to_owned();
         let col = setup
-            .call1("setup", (PyString::new(*py, col_fname),))
+            .call_method1("setup", (PyString::new(*py, col_fname),))
             .unwrap();
         col
     }
 
     struct TestSetup<'a> {
         py: &'a Python<'a>,
-        col: &'a PyAny,
+        col: Bound<'a, PyAny>,
         col_fname: String,
         tmp_files: Vec<TempPath>,
         _tmp_dirs: Vec<TempDir>,
@@ -361,13 +382,18 @@ def cleanup(fname, col):
     os.remove(path)
     shutil.rmtree(media)
                 "#;
-            let cleanup = PyModule::from_code(*self.py, code, "test_cleanup", "test_cleanup.py")
-                .unwrap()
-                .to_owned();
+            let cleanup = PyModule::from_code(
+                *self.py,
+                code.as_cstring().as_c_str(),
+                "test_cleanup".as_cstring().as_c_str(),
+                "test_cleanup.py".as_cstring().as_c_str(),
+            )
+            .unwrap()
+            .to_owned();
             cleanup
-                .call(
+                .call_method(
                     "cleanup",
-                    (PyString::new(*self.py, &self.col_fname), self.col),
+                    (PyString::new(*self.py, &self.col_fname), self.col()),
                     None,
                 )
                 .unwrap();
@@ -409,7 +435,7 @@ def cleanup(fname, col):
                 package.write_to_file(out_file.to_str().unwrap()).unwrap();
             }
             let locals = PyDict::new(*self.py);
-            let anki_col = self.col;
+            let anki_col = self.col();
             locals.set_item("col", anki_col).unwrap();
             locals
                 .set_item(
@@ -420,11 +446,17 @@ def cleanup(fname, col):
             let code = r#"
 import anki
 import anki.importing.apkg
+
+from anki.lang import set_lang
+set_lang("en_US")
+
 importer = anki.importing.apkg.AnkiPackageImporter(col, outfile)
 importer.run()
 res = col
         "#;
-            self.py.run(code, None, Some(locals)).unwrap();
+            self.py
+                .run(code.as_cstring().as_c_str(), None, Some(&locals))
+                .unwrap();
             let col = locals.get_item("res").unwrap();
             self.col = col;
         }
@@ -437,16 +469,21 @@ def assertion(col):
         "#,
                 condition_str
             );
-            let assertion =
-                PyModule::from_code(*self.py, &code, "assertion", "assertion.py").unwrap();
+            let assertion = PyModule::from_code(
+                *self.py,
+                code.as_cstring().as_c_str(),
+                "assertion".as_cstring().as_c_str(),
+                "assertion.py".as_cstring().as_c_str(),
+            )
+            .unwrap();
             assertion
-                .call1("assertion", (self.col,))
+                .call_method1("assertion", (self.col(),))
                 .unwrap()
                 .extract()
                 .unwrap()
         }
 
-        fn check_media(&self) -> (Vec<String>, Vec<String>, Vec<String>) {
+        fn check_media(&self) -> (Vec<String>, String, Vec<String>) {
             let code = r#"
 import os
 def check_media(col):
@@ -458,33 +495,38 @@ def check_media(col):
     os.chdir(orig_cwd)
     return res.missing, res.report, res.unused
             "#;
-            let check = PyModule::from_code(*self.py, code, "check_media", "check_media.py")
-                .unwrap()
-                .to_owned();
+            let check = PyModule::from_code(
+                *self.py,
+                code.as_cstring().as_c_str(),
+                "check_media".as_cstring().as_c_str(),
+                "check_media.py".as_cstring().as_c_str(),
+            )
+            .unwrap()
+            .to_owned();
             check
-                .call1("check_media", (self.col,))
+                .call_method1("check_media", (self.col(),))
                 .unwrap()
                 .extract()
                 .unwrap()
         }
 
-        fn col(&self) -> &PyAny {
-            self.col
+        fn col(&self) -> &Bound<'_, PyAny> {
+            &self.col
         }
     }
 
     #[test]
     #[serial]
     fn import_anki() {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        py.import("anki").unwrap();
+        Python::attach(|gil| {
+            gil.import("anki").unwrap();
+        });
     }
 
     #[test]
     #[serial]
     fn generated_deck_can_be_imported() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             let mut deck = Deck::new(123456, "foodeck", "");
             deck.add_note(Note::new(model(), vec!["a", "b"]).unwrap());
@@ -498,21 +540,21 @@ def check_media(col):
     #[test]
     #[serial]
     fn generated_deck_has_valid_cards() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             let mut deck = Deck::new(123456, "foodeck", "");
             deck.add_note(Note::new(cn_model(), vec!["a", "b", "c"]).unwrap());
             deck.add_note(Note::new(cn_model(), vec!["d", "e", "f"]).unwrap());
             deck.add_note(Note::new(cn_model(), vec!["g", "h", "i"]).unwrap());
             setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
-            assert!(setup.check_col("len([col.getCard(i) for i in col.find_cards('')]) == 6"));
+            assert!(setup.check_col("len([col.get_card(i) for i in col.find_cards('')]) == 6"));
         });
     }
 
     #[test]
     #[serial]
     fn multi_deck_package() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             let mut deck1 = Deck::new(123456, "foodeck", "");
             let mut deck2 = Deck::new(654321, "bardeck", "");
@@ -598,13 +640,13 @@ def check_media(col):
         deck.add_note(note);
         std::fs::File::create("present.mp3")
             .unwrap()
-            .write(VALID_MP3)
+            .write_all(VALID_MP3)
             .unwrap();
         std::fs::File::create("present.jpg")
             .unwrap()
-            .write(VALID_JPG)
+            .write_all(VALID_JPG)
             .unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             setup.import_package(
                 Package::new(vec![deck], vec!["present.mp3", "present.jpg"]).unwrap(),
@@ -641,13 +683,13 @@ def check_media(col):
         let present_jpg_path = tmp_dir.path().join("present.jpg");
         std::fs::File::create(present_mp3_path.clone())
             .unwrap()
-            .write(VALID_MP3)
+            .write_all(VALID_MP3)
             .unwrap();
         std::fs::File::create(present_jpg_path.clone())
             .unwrap()
-            .write(VALID_JPG)
+            .write_all(VALID_JPG)
             .unwrap();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             setup.import_package(
                 Package::new(
@@ -670,7 +712,7 @@ def check_media(col):
     #[test]
     #[serial]
     fn deck_with_description() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             let mut deck = Deck::new(112233, "foodeck", "Very nice deck");
             let note = Note::new(model(), vec!["a", "b"]).unwrap();
@@ -684,22 +726,21 @@ def check_media(col):
     #[test]
     #[serial]
     fn card_added_date_is_recent() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             let mut deck = Deck::new(1104693946, "foodeck", "");
             let note = Note::new(model(), vec!["a", "b"]).unwrap();
             deck.add_note(note);
             setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
-            assert!(
-                setup.check_col("col.getNote(col.find_notes('')[0]).cards()[0].id > 1577836800000")
-            )
+            assert!(setup
+                .check_col("col.get_note(col.find_notes('')[0]).cards()[0].id > 1577836800000"))
         });
     }
 
     #[test]
     #[serial]
     fn model_with_latex_pre_and_post() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             let mut deck = Deck::new(69696969696, "foodeck", "");
             let note = Note::new(model_with_latex(), vec!["a", "b"]).unwrap();
@@ -708,15 +749,20 @@ def check_media(col):
             let col = setup.col();
             let code = r#"
 def latex(col, key):
-    anki_note = col.getNote(col.find_notes('')[0])
-    return anki_note.model()[key]
+    anki_note = col.get_note(col.find_notes('')[0])
+    return anki_note.note_type()[key]
                 "#;
-            let assertion = PyModule::from_code(py, code, "latex", "latex.py")
-                .unwrap()
-                .to_owned();
+            let assertion = PyModule::from_code(
+                py,
+                code.as_cstring().as_c_str(),
+                "latex".as_cstring().as_c_str(),
+                "latex.py".as_cstring().as_c_str(),
+            )
+            .unwrap()
+            .to_owned();
             assert_eq!(
                 assertion
-                    .call("latex", (col, PyString::new(py, "latexPre"),), None,)
+                    .call_method("latex", (col, PyString::new(py, "latexPre"),), None,)
                     .unwrap()
                     .extract::<String>()
                     .unwrap(),
@@ -724,7 +770,7 @@ def latex(col, key):
             );
             assert_eq!(
                 assertion
-                    .call("latex", (col, PyString::new(py, "latexPost"),), None,)
+                    .call_method("latex", (col, PyString::new(py, "latexPost"),), None,)
                     .unwrap()
                     .extract::<String>()
                     .unwrap(),
@@ -736,14 +782,14 @@ def latex(col, key):
     #[test]
     #[serial]
     fn test_model_with_sort_field_index() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let mut setup = TestSetup::new(&py);
             let mut deck = Deck::new(1104693946, "foodeck", "");
             let note = Note::new(model_with_sort_field_index(), vec!["a", "b"]).unwrap();
             deck.add_note(note);
             setup.import_package(Package::new(vec![deck], vec![]).unwrap(), None);
             assert!(setup.check_col(&format!(
-                "col.getNote(col.find_notes('')[0]).model()['sortf'] == {}",
+                "col.get_note(col.find_notes('')[0]).note_type()['sortf'] == {}",
                 CUSTOM_SORT_FIELD_INDEX
             )));
         });

@@ -5,7 +5,7 @@ use crate::db_entries::Tmpl;
 /// the builder pattern.
 ///
 /// Example:
-/// ```rust
+/// ```
 /// use genanki_rs::Template;
 ///
 /// let template1 = Template::new("Card 1").qfmt("{{Question}}").afmt(r#"{{FrontSide}}<hr id="answer">{{Answer}}"#);
@@ -66,16 +66,16 @@ impl Template {
     }
 }
 
-impl Into<Tmpl> for Template {
-    fn into(self) -> Tmpl {
+impl From<Template> for Tmpl {
+    fn from(value: Template) -> Self {
         Tmpl {
-            name: self.name,
-            qfmt: self.qfmt.unwrap_or("".to_string()),
-            did: self.did,
-            bafmt: self.bafmt.unwrap_or("".to_string()),
-            afmt: self.afmt.unwrap_or("".to_string()),
+            name: value.name,
+            qfmt: value.qfmt.unwrap_or("".to_string()),
+            did: value.did,
+            bafmt: value.bafmt.unwrap_or("".to_string()),
+            afmt: value.afmt.unwrap_or("".to_string()),
             ord: 0,
-            bqfmt: self.bqfmt.unwrap_or("".to_string()),
+            bqfmt: value.bqfmt.unwrap_or("".to_string()),
         }
     }
 }

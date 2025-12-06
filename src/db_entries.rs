@@ -1,4 +1,3 @@
-use crate::deck::Deck;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,12 +24,6 @@ pub struct DeckDbEntry {
     #[serde(rename = "timeToday")]
     pub time_today: Vec<i64>,
     pub usn: i64,
-}
-
-impl From<Deck> for DeckDbEntry {
-    fn from(deck: Deck) -> Self {
-        deck.into()
-    }
 }
 
 #[derive(Serialize, Deserialize)]

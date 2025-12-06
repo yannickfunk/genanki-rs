@@ -18,7 +18,7 @@ use std::str::FromStr;
 /// `Package` to pack `Deck`s and `media_files` and write them to a `.apkg` file
 ///
 /// Example:
-/// ```rust
+/// ```ignore
 /// use genanki_rs::{Package, Deck, Note, Model, Field, Template};
 ///
 /// let model = Model::new(
@@ -38,7 +38,7 @@ use std::str::FromStr;
 /// deck.add_note(Note::new(model.clone(), vec!["What is the capital of France?", "Paris", "[sound:sound.mp3]"])?);
 /// deck.add_note(Note::new(model.clone(), vec!["What is the capital of France?", "Paris", r#"<img src="image.jpg">"#])?);
 ///
-/// let mut package = Package::new(vec![my_deck], vec!["sound.mp3", "images/image.jpg"])?;
+/// let mut package = Package::new(vec![deck], vec!["sound.mp3", "images/image.jpg"])?;
 /// package.write_to_file("output.apkg")?;
 /// ```
 pub struct Package {
@@ -110,7 +110,7 @@ impl Package {
 
         let mut outzip = ZipWriter::new(writer);
         outzip
-            .start_file("collection.anki2", FileOptions::default())
+            .start_file::<&str, ()>("collection.anki2", FileOptions::default())
             .map_err(zip_error)?;
         outzip.write_all(&read_file_bytes(db_file)?)?;
 
@@ -134,13 +134,13 @@ impl Package {
             .collect::<HashMap<String, &str>>();
         let media_json = serde_json::to_string(&media_map).map_err(json_error)?;
         outzip
-            .start_file("media", FileOptions::default())
+            .start_file::<&str, ()>("media", FileOptions::default())
             .map_err(zip_error)?;
         outzip.write_all(media_json.as_bytes())?;
 
         for (idx, &path) in &media_file_idx_to_path {
             outzip
-                .start_file(idx.to_string(), FileOptions::default())
+                .start_file::<String, ()>(idx.to_string(), FileOptions::default())
                 .map_err(zip_error)?;
             outzip.write_all(&read_file_bytes(path)?)?;
         }
@@ -157,7 +157,7 @@ impl Package {
             .execute_batch(APKG_COL)
             .map_err(database_error)?;
         for deck in &mut self.decks {
-            deck.write_to_db(&transaction, timestamp, &mut id_gen)?;
+            deck.write_to_db(transaction, timestamp, &mut id_gen)?;
         }
         Ok(())
     }

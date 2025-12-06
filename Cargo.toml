@@ -10,18 +10,22 @@ repository = "https://github.com/yannickfunk/genanki-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["sqlite-bundled"]
+sqlite-bundled = ["rusqlite/bundled"]
+
 [dependencies]
-rusqlite = { version = "0.25.1", features = ["bundled"] }
-tempfile = "3.2.0"
-zip = "0.5.12"
-serde_json = "1.0.64"
-fancy-regex = "0.5.0"
+rusqlite = "0.37.0"
+tempfile = "3.23.0"
+zip = "6.0.0"
+serde_json = "1.0.145"
+fancy-regex = "0.16.2"
 serde = { version = "1.0", features = ["derive"] }
-ramhorns = "0.10.2"
-thiserror = "1.0.32"
+ramhorns = "1.0.1"
+thiserror = "2.0.17"
 
 [dev-dependencies]
-anyhow = "1.0.62"
-pyo3 = "0.13.2"
-serial_test = "0.5.1"
-uuid = { version = "0.8", features = ["v4"] }
+anyhow = "1.0.100"
+pyo3 = { version = "0.27.2", features = [ "auto-initialize" ] }
+serial_test = "3.2.0"
+uuid = { version = "1.19.0", features = [ "v4" ] }
